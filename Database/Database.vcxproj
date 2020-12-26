@@ -159,6 +159,7 @@
     <ClInclude Include="Database.h" />
     <ClInclude Include="DatabaseLib.h" />
     <ClInclude Include="framework.h" />
+    <ClInclude Include="JsonComparator.h" />
     <ClInclude Include="pch.h" />
   </ItemGroup>
   <ItemGroup>

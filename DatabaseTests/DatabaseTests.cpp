@@ -16,13 +16,12 @@ namespace DatabaseTests
 		void createTable(DatabaseLib::Database database)
 		{
 			json keys;
-			keys["id"] = 1;
-			keys["name"] = -1;
+			keys["idNameKey"] = {"id", "name"};
+			keys["emailKey"] = "email";
 
 			database.createTable("clients", keys.dump());
 		}
 	public:
-		
 		TEST_METHOD(ConnectToDatabase)
 		{
 			DatabaseLib::Database database;
@@ -52,7 +51,7 @@ namespace DatabaseTests
 			fileContent << file.rdbuf();
 
 			json expected;
-			expected["clients"]["keys"] = {{"id", 1}, {"name", -1}};
+			expected["clients"]["keys"] = { {"idNameKey", {"id", "name"}}, {"emailKey", "email"} };
 
 			Assert::AreEqual(expected.dump(4), fileContent.str());
 		}
@@ -80,9 +79,26 @@ namespace DatabaseTests
 			DatabaseLib::Connection connection = database.connect();
 			
 			json keyValue;
-			keyValue["id"] = 1;
+			keyValue["emailKey"] = "mari@mail.com";
 
-			std::string strRow = database.getRowByKey("clients", keyValue.dump());
+			std::string strRow = database.getRowByKey("users", keyValue.dump());
+			database.disconnect(connection);
+
+			json row = json::parse(strRow);
+			std::string expectedMessage = "hello, Mari";
+
+			Assert::AreEqual(expectedMessage, row["message"].get<std::string>());
+		}
+
+		TEST_METHOD(GetRowByCompositeKey)
+		{
+			DatabaseLib::Database database;
+			DatabaseLib::Connection connection = database.connect();
+
+			json keyValue;
+			keyValue["idNameKey"] = { {"id", 1}, {"name", "John"} };
+
+			std::string strRow = database.getRowByKey("users", keyValue.dump());
 			database.disconnect(connection);
 
 			json row = json::parse(strRow);
@@ -96,9 +112,7 @@ namespace DatabaseTests
 			DatabaseLib::Database database;
 			DatabaseLib::Connection connection = database.connect();
 
-			json key = json::array({ "id" });
-
-			std::string strRow = database.getRowInSortedTable("clients", key.dump());
+			std::string strRow = database.getRowInSortedTable("users", "emailKey", false);
 			database.disconnect(connection);
 
 			json row = json::parse(strRow);

@@ -1,13 +1,12 @@
 #pragma once
-#include "Connection.h"
 #include <unordered_map>
 #include <vector>
-#include "nlohmann/json.hpp"
+#include "Connection.h"
+#include "JsonComparator.h"
 
 namespace DatabaseLib
 {
 	using Cursor = unsigned;
-	using json = nlohmann::json;
 
 	class DATABASE_API Database
 	{
@@ -16,7 +15,8 @@ namespace DatabaseLib
 		std::string JSON_EXT = ".json";
 		std::string INDEX_FILE = "_index.json";
 		std::unordered_map<unsigned, Cursor> connections;
-		std::unordered_map<std::string, std::unordered_map<std::string, std::map<std::string, std::vector<unsigned>>>> tablesIndexes;
+		std::unordered_map<std::string, std::unordered_map<std::string, 
+			std::map<json, std::vector<unsigned>, JsonComparator>>> tablesIndexes;
 		json readJsonFromFile(std::string fileName);
 		void loadIndex(std::string tableName);
 		std::string readRowByOffset(std::string tableName, unsigned offset);
@@ -26,6 +26,6 @@ namespace DatabaseLib
 		void createTable(std::string tableName, std::string keysJson);
 		void removeTable(std::string tableName);
 		std::string getRowByKey(std::string tableName, std::string keyJson);
-		std::string getRowInSortedTable(std::string tableName, std::string key);
+		std::string getRowInSortedTable(std::string tableName, std::string key, bool isReversed);
 	};
 }

@@ -49,6 +49,7 @@ namespace DatabaseLib
 		tableFile << tablesMeta.dump(4);
 
 		remove((tableName + JSON_EXT).c_str());
+		remove((tableName + INDEX_FILE).c_str());
 	}
 
 	std::string Database::getRowByKey(std::string tableName, std::string keyJson)
@@ -56,18 +57,34 @@ namespace DatabaseLib
 		loadIndex(tableName);
 
 		json key = json::parse(keyJson);
-		auto properties = key.items();
-		unsigned offset = tablesIndexes[tableName][properties.begin().key()][std::to_string(properties.begin().value().get<unsigned>())][0];
+		auto properties = key.items().begin();
+		unsigned offset = tablesIndexes[tableName][properties.key()][properties.value()][0];
 
 		return readRowByOffset(tableName, offset);
 	}
 
-	std::string Database::getRowInSortedTable(std::string tableName, std::string keyJson)
+	std::string Database::getRowInSortedTable(std::string tableName, std::string key, bool isReversed)
 	{
 		loadIndex(tableName);
 
-		std::vector<std::string> key = json::parse(keyJson).get<std::vector<std::string>>();
-		unsigned offset = (*tablesIndexes[tableName][key[0]].begin()).second[0];
+		auto keyValues = tablesIndexes[tableName][key];
+		unsigned offset = 0u;
+		if (isReversed) 
+		{
+			auto it = keyValues.rbegin();
+			if (it != keyValues.rend())
+			{
+				offset = it->second[0];
+			}
+		}
+		else
+		{
+			auto it = keyValues.begin();
+			if (it != keyValues.end())
+			{
+				offset = it->second[0];
+			}
+		}
 		return readRowByOffset(tableName, offset);
 	}
 
@@ -88,28 +105,18 @@ namespace DatabaseLib
 			std::stringstream fileContent;
 			fileContent << tableIndexFile.rdbuf();
 			json indexes = json::parse(fileContent.str());
-			std::unordered_map<std::string, std::map<std::string, std::vector<unsigned>>> keyParts;
+			std::unordered_map<std::string, std::map<json, std::vector<unsigned>, JsonComparator>> keysMap;
 
-			for (auto it = indexes.begin(); it != indexes.end(); it++) 
+			for (auto& index : indexes)
 			{
-				json index = *it;
 				std::vector<unsigned> offsets = index["offsets"].get<std::vector<unsigned>>();
-				json keysJson = index["keys"];
-				for (auto& el : keysJson.items())
+				json keys = index["keys"];
+				for (auto& keyValue : keys.items())
 				{
-					auto value = el.value();
-
-					if (value.is_string())
-					{
-						keyParts[el.key()][value.get<std::string>()] = offsets;
-					}
-					else if (value.is_number()) 
-					{
-						keyParts[el.key()][std::to_string(value.get<int>())] = offsets;
-					}	
+					keysMap[keyValue.key()][keyValue.value()] = offsets;
 				}
 			}
-			tablesIndexes[tableName] = keyParts;
+			tablesIndexes[tableName] = keysMap;
 		}
 	}
 }

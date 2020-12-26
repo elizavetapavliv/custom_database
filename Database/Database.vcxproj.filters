@@ -30,6 +30,9 @@
     <ClInclude Include="DatabaseLib.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="JsonComparator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp">
