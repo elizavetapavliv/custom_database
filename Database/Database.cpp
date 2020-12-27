@@ -7,42 +7,43 @@ namespace DatabaseLib
 {
 	Connection Database::connect()
 	{
-		return Connection();
+		Connection connection = Connection();
+		connections[connection.getConnectionId()];
+		return connection;
 	}
 
 	void Database::disconnect(Connection connection) 
 	{
-		connections.erase(connection.getConnectionId());
-	}
-
-	json Database::readJsonFromFile(std::string fileName) 
-	{
-		json result = json::object();
-		std::ifstream file (fileName);
-
-		if (file.is_open())
+		if (!connections.erase(connection.getConnectionId()))
 		{
-			std::stringstream fileContent;
-			fileContent << file.rdbuf();
-			result = json::parse(fileContent.str());
+			throw DatabaseException("You havent't been connected", ErrorCode::NO_CONNECTION);
 		}
-		return result;
 	}
 
-	void Database::createTable(std::string tableName, json keysJson)
+	void Database::createTable(std::string tableName, json keysJson, Connection connection)
 	{
+		checkConnection(connection);
 		json tablesMeta = readJsonFromFile(META_FILE);
-		tablesMeta[tableName]["keys"] = keysJson;
+		tablesMeta = tablesMeta.is_null() ? json::object() : tablesMeta;
+ 		tablesMeta[tableName]["keys"] = keysJson;
+
+		std::ofstream tableIndexFile(tableName + INDEX_FILE);
+		tableIndexFile << json::array().dump();
 
 		std::ofstream tablesMetaFile(META_FILE);
 		tablesMetaFile << tablesMeta.dump();
 	}
 
-	void Database::removeTable(std::string tableName)
+	void Database::removeTable(std::string tableName, Connection connection)
 	{
+		checkConnection(connection);
 		json tablesMeta = readJsonFromFile(META_FILE);
-		tablesMeta.erase(tableName);
+		if (tablesMeta.is_null() || tablesMeta.empty())
+		{
+			throw DatabaseException("Table not found: " + tableName, ErrorCode::TABLE_NOT_FOUND);
+		}
 
+		tablesMeta.erase(tableName);
 		std::ofstream tableFile(META_FILE);
 		tableFile << tablesMeta.dump();
 
@@ -52,20 +53,22 @@ namespace DatabaseLib
 
 	json Database::getRowByKey(std::string tableName, json keyJson, Connection connection)
 	{
+		checkConnection(connection);
 		loadIndex(tableName);
 
 		auto properties = keyJson.items().begin();
 		std::string keyName = properties.key();
+		checkKeyIsFound(tableName, keyName);
 
 		auto row = tablesIndexes[tableName][keyName].find(properties.value());
-		unsigned offset = 0u;
-
-		if (row != tablesIndexes[tableName][keyName].end())
+		auto end = tablesIndexes[tableName][keyName].end();
+		if (row == end)
 		{
-			offset = row->second[0];
+			throw DatabaseException("Key value not found", ErrorCode::KEY_VALUE_NOT_FOUND);
 		}
 
-		Cursor currentRow (row, 0u);
+		unsigned offset = row->second[0];
+		Cursor currentRow (row, end, 0);
 		connections[connection.getConnectionId()][tableName] = currentRow;
 
 		return readDataByOffset(tableName, offset);
@@ -74,10 +77,12 @@ namespace DatabaseLib
 	json Database::getRowInSortedTable(std::string tableName, std::string keyName, 
 		bool isReversed, Connection connection)
 	{
+		checkConnection(connection);
 		loadIndex(tableName);
+		checkKeyIsFound(tableName, keyName);
 
-		std::map<json, std::vector<unsigned>, JsonComparator>::iterator row;
-		unsigned offsetIndex;
+		Indexes::iterator row;
+		int offsetIndex;
 
 		if (isReversed)
 		{
@@ -87,11 +92,11 @@ namespace DatabaseLib
 		else 
 		{
 			row = tablesIndexes[tableName][keyName].begin();
-			offsetIndex = 0u;
+			offsetIndex = 0;
 		}
 		unsigned offset = row->second[offsetIndex];
 
-		Cursor currentRow(row, offsetIndex);
+		Cursor currentRow(row, tablesIndexes[tableName][keyName].end(), offsetIndex);
 		connections[connection.getConnectionId()][tableName] = currentRow;
 
 		return readDataByOffset(tableName, offset);
@@ -99,10 +104,12 @@ namespace DatabaseLib
 
 	json Database::getNextRow(std::string tableName, Connection connection)
 	{
-		Cursor cursor = connections[connection.getConnectionId()][tableName];
+		Cursor cursor = getCurrentCursor(tableName, connection);
+
 		if (cursor.offsetIndex >= cursor.currentRow->second.size() - 1)
 		{
 			cursor.currentRow++;
+			checkDataIsAvailable(cursor);
 			cursor.offsetIndex = 0u;
 		}
 		else
@@ -117,10 +124,12 @@ namespace DatabaseLib
 
 	json Database::getPrevRow(std::string tableName, Connection connection)
 	{
-		Cursor cursor = connections[connection.getConnectionId()][tableName];
+		Cursor cursor = getCurrentCursor(tableName, connection);
+
 		if (cursor.offsetIndex == 0)
 		{
 			cursor.currentRow--;
+			checkDataIsAvailable(cursor);
 			auto offsets = cursor.currentRow->second;
 			cursor.offsetIndex = offsets.size() - 1;
 		}
@@ -132,6 +141,20 @@ namespace DatabaseLib
 		unsigned offset = cursor.currentRow->second[cursor.offsetIndex];
 
 		return readDataByOffset(tableName, offset);
+	}
+
+	json Database::readJsonFromFile(std::string fileName)
+	{
+		json result;
+		std::ifstream file(fileName);
+
+		if (file.is_open())
+		{
+			std::stringstream fileContent;
+			fileContent << file.rdbuf();
+			result = json::parse(fileContent.str());
+		}
+		return result;
 	}
 
 	json Database::readDataByOffset(std::string tableName, unsigned offset)	
@@ -148,6 +171,10 @@ namespace DatabaseLib
 		if (tablesIndexes.find(tableName) == tablesIndexes.end())
 		{
 			json indexes = readJsonFromFile(tableName + INDEX_FILE);
+			if (indexes.is_null())
+			{
+				throw DatabaseException("Table not found: " + tableName, ErrorCode::TABLE_NOT_FOUND);
+			}
 			std::unordered_map<std::string, std::map<json, std::vector<unsigned>, JsonComparator>> keysMap;
 
 			for (auto& index : indexes)
@@ -158,5 +185,47 @@ namespace DatabaseLib
 			}
 			tablesIndexes[tableName] = keysMap;
 		}
+	}
+
+	void Database::checkKeyIsFound(std::string tableName, std::string key)
+	{
+		if (tablesIndexes[tableName].find(key) == tablesIndexes[tableName].end())
+		{
+			throw DatabaseException("Key not found: " + key , ErrorCode::KEY_NOT_FOUND);
+		}
+	}
+
+	void Database::checkCursorIsOpened(Cursor cursor)
+	{
+		if (cursor.offsetIndex == -1)
+		{
+			throw DatabaseException("Cursor wasn't opened", ErrorCode::CURSOR_NOT_OPENED);
+		}
+	}
+
+	void Database::checkDataIsAvailable(Cursor cursor)
+	{
+		if (cursor.currentRow == cursor.end)
+		{
+			throw DatabaseException("No more data available", ErrorCode::NO_MORE_DATA_AVAILABLE);
+		}
+	}
+
+	void Database::checkConnection(Connection connection)
+	{
+		if (connections.find(connection.getConnectionId()) == connections.end())
+		{
+			throw DatabaseException("You havent't been connected", ErrorCode::NO_CONNECTION);
+		}
+	}
+
+	Cursor Database::getCurrentCursor(std::string tableName, Connection connection)
+	{
+		checkConnection(connection);
+		loadIndex(tableName);
+		Cursor cursor = connections[connection.getConnectionId()][tableName];
+		checkCursorIsOpened(cursor);
+
+		return cursor;
 	}
 }

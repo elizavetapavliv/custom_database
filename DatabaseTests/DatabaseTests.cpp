@@ -12,13 +12,13 @@ namespace DatabaseTests
 	TEST_CLASS(DatabaseTests)
 	{
 	private:
-		void createTable(DatabaseLib::Database database)
+		void createTable(DatabaseLib::Database database, DatabaseLib::Connection connection)
 		{
 			json keys;
 			keys["idNameKey"] = {"id", "name"};
 			keys["emailKey"] = "email";
 
-			database.createTable("clients", keys);
+			database.createTable("clients", keys, connection);
 		}
 	public:
 		TEST_METHOD(ConnectToDatabase)
@@ -26,6 +26,25 @@ namespace DatabaseTests
 			DatabaseLib::Database database;
 			DatabaseLib::Connection connection = database.connect();
 			Assert::AreNotEqual(0u, connection.getConnectionId());
+		}
+
+		TEST_METHOD(DisconnectFromDatabase)
+		{
+			DatabaseLib::Database database;
+			DatabaseLib::Connection connection = database.connect();
+			database.disconnect(connection);
+			
+			bool exceptionIsThrown = false;
+			try
+			{
+				database.createTable("abc", json::object(), connection);
+			}
+			catch (DatabaseLib::DatabaseException ex)
+			{
+				Assert::IsTrue(DatabaseLib::ErrorCode::NO_CONNECTION == ex.getErrorNumber());
+				exceptionIsThrown = true;
+			}
+			Assert::IsTrue(exceptionIsThrown);
 		}
 
 		TEST_METHOD(MultiUserConnectToDatabase)
@@ -40,8 +59,7 @@ namespace DatabaseTests
 		{
 			DatabaseLib::Database database;
 			DatabaseLib::Connection connection = database.connect();
-			createTable(database);
-			database.disconnect(connection);
+			createTable(database, connection);
 
 			std::ifstream file("tables_meta.json");
 			std::stringstream fileContent;
@@ -51,14 +69,16 @@ namespace DatabaseTests
 			expected["clients"]["keys"] = { {"idNameKey", {"id", "name"}}, {"emailKey", "email"} };
 
 			Assert::AreEqual(expected.dump(), fileContent.str());
+			database.removeTable("clients", connection);
+			database.disconnect(connection);
 		}
 
 		TEST_METHOD(RemoveTable)
 		{
 			DatabaseLib::Database database;
 			DatabaseLib::Connection connection = database.connect();
-			createTable(database);
-			database.removeTable("clients");
+			createTable(database, connection);
+			database.removeTable("clients", connection);
 			database.disconnect(connection);
 
 			std::ifstream tables_meta("tables_meta.json");
@@ -68,6 +88,27 @@ namespace DatabaseTests
 			json empty = json::object();
 
 			Assert::AreEqual(empty.dump(), fileContent.str());
+		}
+
+		TEST_METHOD(NotExistingTable)
+		{
+			DatabaseLib::Database database;
+			DatabaseLib::Connection connection = database.connect();
+
+			json keyValue;
+			keyValue["emailKey"] = "jh@mail.com";
+
+			bool exceptionIsThrown = false;
+			try
+			{
+				json row = database.getRowByKey("u", keyValue, connection);
+			}
+			catch (DatabaseLib::DatabaseException ex)
+			{
+				Assert::IsTrue(DatabaseLib::ErrorCode::TABLE_NOT_FOUND == ex.getErrorNumber());
+				exceptionIsThrown = true;
+			}
+			Assert::IsTrue(exceptionIsThrown);
 		}
 
 		TEST_METHOD(GetRowByKey)
@@ -105,6 +146,48 @@ namespace DatabaseTests
 			std::string expectedMessage = "hello, Jhon";
 
 			Assert::AreEqual(expectedMessage, row["message"].get<std::string>());
+		}
+
+		TEST_METHOD(GetRowByNotExistingKey)
+		{
+			DatabaseLib::Database database;
+			DatabaseLib::Connection connection = database.connect();
+
+			json keyValue;
+			keyValue["email"] = "mari@mail.com";
+
+			bool exceptionIsThrown = false;
+			try
+			{
+				json row = database.getRowByKey("users", keyValue, connection);
+			}
+			catch (DatabaseLib::DatabaseException ex)
+			{
+				Assert::IsTrue(DatabaseLib::ErrorCode::KEY_NOT_FOUND == ex.getErrorNumber());
+				exceptionIsThrown = true;
+			}
+			Assert::IsTrue(exceptionIsThrown);
+		}
+
+		TEST_METHOD(GetRowByNotExistingKeyValue)
+		{
+			DatabaseLib::Database database;
+			DatabaseLib::Connection connection = database.connect();
+
+			json keyValue;
+			keyValue["emailKey"] = "alex@mail.com";
+
+			bool exceptionIsThrown = false;
+			try
+			{
+				json row = database.getRowByKey("users", keyValue, connection);
+			}
+			catch (DatabaseLib::DatabaseException ex)
+			{
+				Assert::IsTrue(DatabaseLib::ErrorCode::KEY_VALUE_NOT_FOUND == ex.getErrorNumber());
+				exceptionIsThrown = true;
+			}
+			Assert::IsTrue(exceptionIsThrown);
 		}
 
 		TEST_METHOD(GetRowInSortedTable)
@@ -163,6 +246,46 @@ namespace DatabaseTests
 			Assert::AreEqual(expectedMessage, nextRow["message"].get<std::string>());
 		}
 
+		TEST_METHOD(NoNextRow)
+		{
+			DatabaseLib::Database database;
+			DatabaseLib::Connection connection = database.connect();
+
+			database.getRowInSortedTable("users", "emailKey", true, connection);
+
+			bool exceptionIsThrown = false;
+			try
+			{
+				json nextRow = database.getNextRow("users", connection);
+			}
+			catch (DatabaseLib::DatabaseException ex)
+			{
+				Assert::IsTrue(DatabaseLib::ErrorCode::NO_MORE_DATA_AVAILABLE == ex.getErrorNumber());
+				exceptionIsThrown = true;
+			}
+			Assert::IsTrue(exceptionIsThrown);
+		}
+
+		TEST_METHOD(CursorNotOpened)
+		{
+			DatabaseLib::Database database;
+			DatabaseLib::Connection connection = database.connect();
+
+			bool exceptionIsThrown = false;
+			try
+			{
+				database.createTable("clients", json::object(), connection);
+				json nextRow = database.getNextRow("clients", connection);
+				database.removeTable("clients", connection);
+			}
+			catch (DatabaseLib::DatabaseException ex)
+			{
+				Assert::IsTrue(DatabaseLib::ErrorCode::CURSOR_NOT_OPENED == ex.getErrorNumber());
+				exceptionIsThrown = true;
+			}
+			Assert::IsTrue(exceptionIsThrown);
+		}
+
 		TEST_METHOD(GetNextRowTheSameKey)
 		{
 			DatabaseLib::Database database;
@@ -197,6 +320,26 @@ namespace DatabaseTests
 			Assert::AreEqual(expectedMessage, prevRow["message"].get<std::string>());
 		}
 
+		TEST_METHOD(NoPrevRow)
+		{
+			DatabaseLib::Database database;
+			DatabaseLib::Connection connection = database.connect();
+
+			database.getRowInSortedTable("users", "emailKey", false, connection);
+
+			bool exceptionIsThrown = false;
+			try
+			{
+				json nextRow = database.getPrevRow("users", connection);
+			}
+			catch (DatabaseLib::DatabaseException ex)
+			{
+				Assert::IsTrue(DatabaseLib::ErrorCode::NO_MORE_DATA_AVAILABLE == ex.getErrorNumber());
+				exceptionIsThrown = true;
+			}
+			Assert::IsTrue(exceptionIsThrown);
+		}
+
 		TEST_METHOD(GetPrevTheSameKey)
 		{
 			DatabaseLib::Database database;
@@ -211,5 +354,6 @@ namespace DatabaseTests
 
 			Assert::AreEqual(expectedMessage, prevRow["message"].get<std::string>());
 		}
+
 	};
 }

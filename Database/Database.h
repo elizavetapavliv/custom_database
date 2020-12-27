@@ -4,9 +4,12 @@
 #include "Connection.h"
 #include "JsonComparator.h"
 #include "Cursor.h"
+#include "DatabaseException.h"
 
 namespace DatabaseLib
 {
+	
+
 	class DATABASE_API Database
 	{
 	private:
@@ -16,17 +19,21 @@ namespace DatabaseLib
 
 		std::unordered_map<unsigned, std::unordered_map<std::string, Cursor>> connections;
 
-		std::unordered_map<std::string, std::unordered_map<std::string, 
-			std::map<json, std::vector<unsigned>, JsonComparator>>> tablesIndexes;
+		std::unordered_map<std::string, std::unordered_map<std::string, Indexes>> tablesIndexes;
 
 		json readJsonFromFile(std::string fileName);
 		void loadIndex(std::string tableName);
 		json readDataByOffset(std::string tableName, unsigned offset);
+		void checkKeyIsFound(std::string tableName, std::string key);
+		void checkCursorIsOpened(Cursor cursor);
+		void checkDataIsAvailable(Cursor cursor);
+		void checkConnection(Connection connection);
+		Cursor getCurrentCursor(std::string tableName, Connection connection);
 	public:
 		Connection connect();
 		void disconnect(Connection connection);
-		void createTable(std::string tableName, json keysJson);
-		void removeTable(std::string tableName);
+		void createTable(std::string tableName, json keysJson, Connection connection);
+		void removeTable(std::string tableName, Connection connection);
 		json getRowByKey(std::string tableName, json keyJson, Connection connection);
 		json getRowInSortedTable(std::string tableName, std::string keyName,
 			bool isReversed, Connection connection);

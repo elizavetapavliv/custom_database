@@ -2,13 +2,16 @@
 
 namespace DatabaseLib
 {
+	using Indexes = std::map<json, std::vector<unsigned>, JsonComparator>;
 	struct Cursor
 	{
-		std::map<json, std::vector<unsigned>, JsonComparator>::iterator currentRow;
-		unsigned offsetIndex;
+		Indexes::iterator currentRow{};
+		Indexes::iterator end{};
 
-		Cursor(std::map<json, std::vector<unsigned>, JsonComparator>::iterator newCurrentRow, 
-			unsigned offsetIndex) : currentRow(newCurrentRow), offsetIndex(offsetIndex)
+		int offsetIndex = -1;
+
+		Cursor(Indexes::iterator newCurrentRow, Indexes::iterator end,
+			int offsetIndex) : currentRow(newCurrentRow), end(end), offsetIndex(offsetIndex)
 		{}
 
 		Cursor() {}
