@@ -8,9 +8,9 @@ namespace DatabaseLib
 	{
 	private:
 		static std::atomic<unsigned int> currentId;
-	public:
 		unsigned connectionId;
+	public:
+		unsigned getConnectionId() const;
 		Connection();
-		bool operator==(const Connection& other) const;
 	};
 }

@@ -1,5 +1,4 @@
 #pragma once
-#include "DatabaseLib.h"
 #include "nlohmann/json.hpp"
 
 namespace DatabaseLib

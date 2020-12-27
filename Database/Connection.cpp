@@ -11,8 +11,8 @@ namespace DatabaseLib
 		connectionId = currentId++;
 	}
 
-	bool Connection:: operator==(const Connection& other) const
+	unsigned Connection::getConnectionId() const
 	{
-		return connectionId == other.connectionId;
+		return connectionId;
 	}
 }

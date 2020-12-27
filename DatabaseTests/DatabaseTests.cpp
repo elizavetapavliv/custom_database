@@ -1,7 +1,6 @@
 #include "pch.h"
 #include "CppUnitTest.h"
 #include "Database.h"
-#include "nlohmann/json.hpp"
 #include <fstream>
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
@@ -19,30 +18,28 @@ namespace DatabaseTests
 			keys["idNameKey"] = {"id", "name"};
 			keys["emailKey"] = "email";
 
-			database.createTable("clients", keys.dump());
+			database.createTable("clients", keys);
 		}
 	public:
 		TEST_METHOD(ConnectToDatabase)
 		{
 			DatabaseLib::Database database;
 			DatabaseLib::Connection connection = database.connect();
-			Assert::AreEqual(1u, connection.connectionId);
+			Assert::AreNotEqual(0u, connection.getConnectionId());
 		}
 
-		/*TEST_METHOD(MultiUserConnectToDatabase)
+		TEST_METHOD(MultiUserConnectToDatabase)
 		{
 			DatabaseLib::Database database;
-			DatabaseLib::Connection connection = database.connect();
-			Assert::AreEqual(2u, connection.connectionId);
-			connection = database.connect();
-			Assert::AreEqual(3u, connection.connectionId);
-		}*/
+			DatabaseLib::Connection connection1 = database.connect();
+			DatabaseLib::Connection connection2 = database.connect();
+			Assert::AreNotEqual(connection1.getConnectionId(), connection2.getConnectionId());
+		}
 
 		TEST_METHOD(CreateTable)
 		{
 			DatabaseLib::Database database;
 			DatabaseLib::Connection connection = database.connect();
-
 			createTable(database);
 			database.disconnect(connection);
 
@@ -53,7 +50,7 @@ namespace DatabaseTests
 			json expected;
 			expected["clients"]["keys"] = { {"idNameKey", {"id", "name"}}, {"emailKey", "email"} };
 
-			Assert::AreEqual(expected.dump(4), fileContent.str());
+			Assert::AreEqual(expected.dump(), fileContent.str());
 		}
 
 		TEST_METHOD(RemoveTable)
@@ -77,14 +74,18 @@ namespace DatabaseTests
 		{
 			DatabaseLib::Database database;
 			DatabaseLib::Connection connection = database.connect();
-			
+
+			//createTable(database);
+			//init table clients
+
 			json keyValue;
 			keyValue["emailKey"] = "mari@mail.com";
+		
 
-			std::string strRow = database.getRowByKey("users", keyValue.dump());
+			//change users to clients
+			json row = database.getRowByKey("users", keyValue, connection);
 			database.disconnect(connection);
 
-			json row = json::parse(strRow);
 			std::string expectedMessage = "hello, Mari";
 
 			Assert::AreEqual(expectedMessage, row["message"].get<std::string>());
@@ -98,10 +99,9 @@ namespace DatabaseTests
 			json keyValue;
 			keyValue["idNameKey"] = { {"id", 1}, {"name", "John"} };
 
-			std::string strRow = database.getRowByKey("users", keyValue.dump());
+			json row = database.getRowByKey("users", keyValue, connection);
 			database.disconnect(connection);
-
-			json row = json::parse(strRow);
+			
 			std::string expectedMessage = "hello, Jhon";
 
 			Assert::AreEqual(expectedMessage, row["message"].get<std::string>());
@@ -112,14 +112,104 @@ namespace DatabaseTests
 			DatabaseLib::Database database;
 			DatabaseLib::Connection connection = database.connect();
 
-			std::string strRow = database.getRowInSortedTable("users", "emailKey", false);
+			json row = database.getRowInSortedTable("users", "emailKey", false, connection);
 			database.disconnect(connection);
 
-			json row = json::parse(strRow);
-			std::string expectedMessage = "hello, Jhon";
+			std::string expectedMessage = "bye, Jhon";
 
 			Assert::AreEqual(expectedMessage, row["message"].get<std::string>());
 		}
 
+		TEST_METHOD(GetRowInReverseSortedTable)
+		{
+			DatabaseLib::Database database;
+			DatabaseLib::Connection connection = database.connect();
+
+			json row = database.getRowInSortedTable("users", "emailKey", true, connection);
+			database.disconnect(connection);
+
+			std::string expectedMessage = "hello, Mari";
+
+			Assert::AreEqual(expectedMessage, row["message"].get<std::string>());
+		}
+
+		TEST_METHOD(GetRowInSortedTableByCompositeKey)
+		{
+			DatabaseLib::Database database;
+			DatabaseLib::Connection connection = database.connect();
+
+			json row = database.getRowInSortedTable("users", "idNameKey", true, connection);
+			database.disconnect(connection);
+
+			std::string expectedMessage = "hello, Mari";
+
+			Assert::AreEqual(expectedMessage, row["message"].get<std::string>());
+		}
+
+		TEST_METHOD(GetNextRow)
+		{
+			DatabaseLib::Database database;
+			DatabaseLib::Connection connection = database.connect();
+
+			json keyValue;
+			keyValue["emailKey"] = "j23@mail.com";
+
+			database.getRowByKey("users", keyValue, connection);
+			json nextRow = database.getNextRow("users", connection);
+			database.disconnect(connection);
+
+			std::string expectedMessage = "hello, Jhon";
+
+			Assert::AreEqual(expectedMessage, nextRow["message"].get<std::string>());
+		}
+
+		TEST_METHOD(GetNextRowTheSameKey)
+		{
+			DatabaseLib::Database database;
+			DatabaseLib::Connection connection = database.connect();
+
+			json keyValue;
+			keyValue["idNameKey"] = { {"id", 1}, {"name", "John"} };
+
+			database.getRowByKey("users", keyValue, connection);
+			json nextRow = database.getNextRow("users", connection);
+			database.disconnect(connection);
+
+			std::string expectedMessage = "bye, Jhon";
+
+			Assert::AreEqual(expectedMessage, nextRow["message"].get<std::string>());
+		}
+
+		TEST_METHOD(GetPrevRow)
+		{
+			DatabaseLib::Database database;
+			DatabaseLib::Connection connection = database.connect();
+
+			json keyValue;
+			keyValue["emailKey"] = "jh@mail.com";
+
+			database.getRowByKey("users", keyValue, connection);
+			json prevRow = database.getPrevRow("users", connection);
+			database.disconnect(connection);
+
+			std::string expectedMessage = "bye, Jhon";
+
+			Assert::AreEqual(expectedMessage, prevRow["message"].get<std::string>());
+		}
+
+		TEST_METHOD(GetPrevTheSameKey)
+		{
+			DatabaseLib::Database database;
+			DatabaseLib::Connection connection = database.connect();
+
+			database.getRowInSortedTable("users", "idNameKey", true, connection);
+			database.getPrevRow("users", connection);
+			json prevRow = database.getPrevRow("users", connection);
+			database.disconnect(connection);
+
+			std::string expectedMessage = "hello, Jhon";
+
+			Assert::AreEqual(expectedMessage, prevRow["message"].get<std::string>());
+		}
 	};
 }

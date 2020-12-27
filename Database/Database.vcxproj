@@ -156,6 +156,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Connection.h" />
+    <ClInclude Include="Cursor.h" />
     <ClInclude Include="Database.h" />
     <ClInclude Include="DatabaseLib.h" />
     <ClInclude Include="framework.h" />

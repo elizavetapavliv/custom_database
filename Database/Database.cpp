@@ -7,14 +7,12 @@ namespace DatabaseLib
 {
 	Connection Database::connect()
 	{
-		Connection connection = Connection();
-		connections[connection.connectionId] = 0;
-		return connection;
+		return Connection();
 	}
 
 	void Database::disconnect(Connection connection) 
 	{
-		connections.erase(connection.connectionId);
+		connections.erase(connection.getConnectionId());
 	}
 
 	json Database::readJsonFromFile(std::string fileName) 
@@ -31,13 +29,13 @@ namespace DatabaseLib
 		return result;
 	}
 
-	void Database::createTable(std::string tableName, std::string keysJson)
+	void Database::createTable(std::string tableName, json keysJson)
 	{
 		json tablesMeta = readJsonFromFile(META_FILE);
-		tablesMeta[tableName]["keys"] = json::parse(keysJson);
+		tablesMeta[tableName]["keys"] = keysJson;
 
 		std::ofstream tablesMetaFile(META_FILE);
-		tablesMetaFile << tablesMeta.dump(4);
+		tablesMetaFile << tablesMeta.dump();
 	}
 
 	void Database::removeTable(std::string tableName)
@@ -46,75 +44,117 @@ namespace DatabaseLib
 		tablesMeta.erase(tableName);
 
 		std::ofstream tableFile(META_FILE);
-		tableFile << tablesMeta.dump(4);
+		tableFile << tablesMeta.dump();
 
-		remove((tableName + JSON_EXT).c_str());
+		remove((tableName + TXT_EXT).c_str());
 		remove((tableName + INDEX_FILE).c_str());
 	}
 
-	std::string Database::getRowByKey(std::string tableName, std::string keyJson)
+	json Database::getRowByKey(std::string tableName, json keyJson, Connection connection)
 	{
 		loadIndex(tableName);
 
-		json key = json::parse(keyJson);
-		auto properties = key.items().begin();
-		unsigned offset = tablesIndexes[tableName][properties.key()][properties.value()][0];
+		auto properties = keyJson.items().begin();
+		std::string keyName = properties.key();
 
-		return readRowByOffset(tableName, offset);
+		auto row = tablesIndexes[tableName][keyName].find(properties.value());
+		unsigned offset = 0u;
+
+		if (row != tablesIndexes[tableName][keyName].end())
+		{
+			offset = row->second[0];
+		}
+
+		Cursor currentRow (row, 0u);
+		connections[connection.getConnectionId()][tableName] = currentRow;
+
+		return readDataByOffset(tableName, offset);
 	}
 
-	std::string Database::getRowInSortedTable(std::string tableName, std::string key, bool isReversed)
+	json Database::getRowInSortedTable(std::string tableName, std::string keyName, 
+		bool isReversed, Connection connection)
 	{
 		loadIndex(tableName);
 
-		auto keyValues = tablesIndexes[tableName][key];
-		unsigned offset = 0u;
-		if (isReversed) 
+		std::map<json, std::vector<unsigned>, JsonComparator>::iterator row;
+		unsigned offsetIndex;
+
+		if (isReversed)
 		{
-			auto it = keyValues.rbegin();
-			if (it != keyValues.rend())
-			{
-				offset = it->second[0];
-			}
+			row = --tablesIndexes[tableName][keyName].end();
+			offsetIndex = row->second.size() - 1;
+		}
+		else 
+		{
+			row = tablesIndexes[tableName][keyName].begin();
+			offsetIndex = 0u;
+		}
+		unsigned offset = row->second[offsetIndex];
+
+		Cursor currentRow(row, offsetIndex);
+		connections[connection.getConnectionId()][tableName] = currentRow;
+
+		return readDataByOffset(tableName, offset);
+	}
+
+	json Database::getNextRow(std::string tableName, Connection connection)
+	{
+		Cursor cursor = connections[connection.getConnectionId()][tableName];
+		if (cursor.offsetIndex >= cursor.currentRow->second.size() - 1)
+		{
+			cursor.currentRow++;
+			cursor.offsetIndex = 0u;
 		}
 		else
 		{
-			auto it = keyValues.begin();
-			if (it != keyValues.end())
-			{
-				offset = it->second[0];
-			}
+			cursor.offsetIndex++;
 		}
-		return readRowByOffset(tableName, offset);
+		connections[connection.getConnectionId()][tableName] = cursor;
+		unsigned offset = (cursor.currentRow->second)[cursor.offsetIndex];
+
+		return readDataByOffset(tableName, offset);
 	}
 
-	std::string Database::readRowByOffset(std::string tableName, unsigned offset)	
+	json Database::getPrevRow(std::string tableName, Connection connection)
 	{
-		std::ifstream tableFile(tableName + JSON_EXT);
+		Cursor cursor = connections[connection.getConnectionId()][tableName];
+		if (cursor.offsetIndex == 0)
+		{
+			cursor.currentRow--;
+			auto offsets = cursor.currentRow->second;
+			cursor.offsetIndex = offsets.size() - 1;
+		}
+		else
+		{
+			cursor.offsetIndex--;
+		}		
+		connections[connection.getConnectionId()][tableName] = cursor;
+		unsigned offset = cursor.currentRow->second[cursor.offsetIndex];
+
+		return readDataByOffset(tableName, offset);
+	}
+
+	json Database::readDataByOffset(std::string tableName, unsigned offset)	
+	{
+		std::ifstream tableFile(tableName + TXT_EXT);
 		tableFile.seekg(offset, std::ios::beg);
 		std::string value;
 		std::getline(tableFile, value);
-		return value;
+		return json::parse(value);
 	}
 
 	void Database::loadIndex(std::string tableName) 
 	{
 		if (tablesIndexes.find(tableName) == tablesIndexes.end())
 		{
-			std::ifstream tableIndexFile(tableName + INDEX_FILE);
-			std::stringstream fileContent;
-			fileContent << tableIndexFile.rdbuf();
-			json indexes = json::parse(fileContent.str());
+			json indexes = readJsonFromFile(tableName + INDEX_FILE);
 			std::unordered_map<std::string, std::map<json, std::vector<unsigned>, JsonComparator>> keysMap;
 
 			for (auto& index : indexes)
 			{
-				std::vector<unsigned> offsets = index["offsets"].get<std::vector<unsigned>>();
-				json keys = index["keys"];
-				for (auto& keyValue : keys.items())
-				{
-					keysMap[keyValue.key()][keyValue.value()] = offsets;
-				}
+				auto keyValue = index.items().begin();
+				keysMap[keyValue.key()][keyValue.value()] = index["offsets"].get<std::vector<unsigned>>();
+			
 			}
 			tablesIndexes[tableName] = keysMap;
 		}
