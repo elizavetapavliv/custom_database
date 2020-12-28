@@ -22,7 +22,7 @@ namespace DatabaseLib
 
 	void Database::createTable(std::string tableName, json keysJson, Connection connection)
 	{
-		checkConnection(connection);
+		ensureIsConnected(connection);
 		json tablesMeta = readJsonFromFile(META_FILE);
 		tablesMeta = tablesMeta.is_null() ? json::object() : tablesMeta;
  		tablesMeta[tableName]["keys"] = keysJson;
@@ -39,9 +39,9 @@ namespace DatabaseLib
 
 	void Database::removeTable(std::string tableName, Connection connection)
 	{
-		checkConnection(connection);
+		ensureIsConnected(connection);
 		json tablesMeta = readJsonFromFile(META_FILE);
-		checkIfTableExists(tableName, tablesMeta);
+		ensureTableExists(tableName, tablesMeta);
 
 		json keysJson = tablesMeta[tableName]["keys"];
 		for (auto key : keysJson)
@@ -58,7 +58,7 @@ namespace DatabaseLib
 
 	json Database::getRowByKey(std::string tableName, json keyJson, Connection connection)
 	{
-		checkConnection(connection);
+		ensureIsConnected(connection);
 		
 		auto properties = keyJson.items().begin();
 		std::string keyName = properties.key();
@@ -82,7 +82,7 @@ namespace DatabaseLib
 	json Database::getRowInSortedTable(std::string tableName, std::string keyName, 
 		bool isReversed, Connection connection)
 	{
-		checkConnection(connection);
+		ensureIsConnected(connection);
 		loadIndex(tableName, keyName);
 
 		Indexes::iterator row;
@@ -91,11 +91,13 @@ namespace DatabaseLib
 		if (isReversed)
 		{
 			row = --tablesIndexes[tableName][keyName].end();
+			ensureTableIsNotEmpty(row, tablesIndexes[tableName][keyName].end());
 			offsetIndex = row->second.size() - 1;
 		}
 		else 
 		{
 			row = tablesIndexes[tableName][keyName].begin();
+			ensureTableIsNotEmpty(row, tablesIndexes[tableName][keyName].end());
 			offsetIndex = 0;
 		}
 		unsigned offset = row->second[offsetIndex];
@@ -113,7 +115,7 @@ namespace DatabaseLib
 		if ((unsigned)cursor.offsetIndex >= cursor.currentRow->second.size() - 1)
 		{
 			cursor.currentRow++;
-			checkIfDataIsAvailable(cursor);
+			ensureDataIsAvailable(cursor);
 			cursor.offsetIndex = 0u;
 		}
 		else
@@ -133,7 +135,7 @@ namespace DatabaseLib
 		if (cursor.offsetIndex == 0)
 		{
 			cursor.currentRow--;
-			checkIfDataIsAvailable(cursor);
+			ensureDataIsAvailable(cursor);
 			auto offsets = cursor.currentRow->second;
 			cursor.offsetIndex = offsets.size() - 1;
 		}
@@ -191,7 +193,7 @@ namespace DatabaseLib
 		}
 	}
 
-	void Database::checkIfKeyIsFound(std::string tableName, std::string key)
+	void Database::ensureKeyIsFound(std::string tableName, std::string key)
 	{
 		if (tablesIndexes[tableName].find(key) == tablesIndexes[tableName].end())
 		{
@@ -199,7 +201,7 @@ namespace DatabaseLib
 		}
 	}
 
-	void Database::checkIfDataIsAvailable(Cursor cursor)
+	void Database::ensureDataIsAvailable(Cursor cursor)
 	{
 		if (cursor.currentRow == cursor.end)
 		{
@@ -207,7 +209,7 @@ namespace DatabaseLib
 		}
 	}
 
-	void Database::checkConnection(Connection connection)
+	void Database::ensureIsConnected(Connection connection)
 	{
 		if (connections.find(connection.getConnectionId()) == connections.end())
 		{
@@ -215,7 +217,7 @@ namespace DatabaseLib
 		}
 	}
 
-	void Database::checkIfTableExists(std::string tableName, json tablesMeta)
+	void Database::ensureTableExists(std::string tableName, json tablesMeta)
 	{
 		if (tablesMeta.is_null() || tablesMeta.empty() || !tablesMeta.contains(tableName))
 		{
@@ -223,11 +225,19 @@ namespace DatabaseLib
 		}
 	}
 
+	void Database::ensureTableIsNotEmpty(Indexes::iterator row, Indexes::iterator end)
+	{
+		if (row == end)
+		{
+			throw DatabaseException("Table is empty", ErrorCode::TABLE_IS_EMPTY);
+		}
+	}
+
 	Cursor Database::getCurrentCursor(std::string tableName, Connection connection)
 	{
-		checkConnection(connection);
+		ensureIsConnected(connection);
 		json tablesMeta = readJsonFromFile(META_FILE);
-		checkIfTableExists(tableName, tablesMeta);
+		ensureTableExists(tableName, tablesMeta);
 		
 		Cursor cursor = connections[connection.getConnectionId()][tableName];
 		if (cursor.offsetIndex == -1)

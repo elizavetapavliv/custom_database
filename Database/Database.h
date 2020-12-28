@@ -22,10 +22,11 @@ namespace DatabaseLib
 		json readJsonFromFile(std::string fileName);
 		void loadIndex(std::string tableName, std::string keyName);
 		json readDataByOffset(std::string tableName, unsigned offset);
-		void checkIfKeyIsFound(std::string tableName, std::string key);
-		void checkIfDataIsAvailable(Cursor cursor);
-		void checkConnection(Connection connection);
-		void checkIfTableExists(std::string tableName, json tablesMeta);
+		void ensureKeyIsFound(std::string tableName, std::string key);
+		void ensureDataIsAvailable(Cursor cursor);
+		void ensureIsConnected(Connection connection);
+		void ensureTableExists(std::string tableName, json tablesMeta);
+		void ensureTableIsNotEmpty(Indexes::iterator row, Indexes::iterator end);
 		Cursor getCurrentCursor(std::string tableName, Connection connection);
 	public:
 		Connection connect();
