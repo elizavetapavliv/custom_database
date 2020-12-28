@@ -125,6 +125,7 @@ namespace DatabaseTests
 
 			//change users to clients
 			json row = database.getRowByKey("users", keyValue, connection);
+			//removeTable
 			database.disconnect(connection);
 
 			std::string expectedMessage = "hello, Mari";
