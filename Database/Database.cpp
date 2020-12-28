@@ -27,8 +27,11 @@ namespace DatabaseLib
 		tablesMeta = tablesMeta.is_null() ? json::object() : tablesMeta;
  		tablesMeta[tableName]["keys"] = keysJson;
 
-		std::ofstream tableIndexFile(tableName + INDEX_FILE);
-		tableIndexFile << json::array().dump();
+		for (auto key : keysJson)
+		{
+			std::ofstream tableIndexFile(tableName + "_" + key.dump() + JSON_EXT);
+			tableIndexFile << json::array().dump();
+		}
 
 		std::ofstream tablesMetaFile(META_FILE);
 		tablesMetaFile << tablesMeta.dump();
@@ -38,9 +41,12 @@ namespace DatabaseLib
 	{
 		checkConnection(connection);
 		json tablesMeta = readJsonFromFile(META_FILE);
-		if (tablesMeta.is_null() || tablesMeta.empty())
+		checkIfTableExists(tableName, tablesMeta);
+
+		json keysJson = tablesMeta[tableName]["keys"];
+		for (auto key : keysJson)
 		{
-			throw DatabaseException("Table not found: " + tableName, ErrorCode::TABLE_NOT_FOUND);
+			remove((tableName + "_" + key.dump() + JSON_EXT).c_str());
 		}
 
 		tablesMeta.erase(tableName);
@@ -48,17 +54,16 @@ namespace DatabaseLib
 		tableFile << tablesMeta.dump();
 
 		remove((tableName + TXT_EXT).c_str());
-		remove((tableName + INDEX_FILE).c_str());
 	}
 
 	json Database::getRowByKey(std::string tableName, json keyJson, Connection connection)
 	{
 		checkConnection(connection);
-		loadIndex(tableName);
-
+		
 		auto properties = keyJson.items().begin();
 		std::string keyName = properties.key();
-		checkKeyIsFound(tableName, keyName);
+
+		loadIndex(tableName, keyName);
 
 		auto row = tablesIndexes[tableName][keyName].find(properties.value());
 		auto end = tablesIndexes[tableName][keyName].end();
@@ -68,7 +73,7 @@ namespace DatabaseLib
 		}
 
 		unsigned offset = row->second[0];
-		Cursor currentRow (row, end, 0);
+		Cursor currentRow (row, end, 0, keyName);
 		connections[connection.getConnectionId()][tableName] = currentRow;
 
 		return readDataByOffset(tableName, offset);
@@ -78,8 +83,7 @@ namespace DatabaseLib
 		bool isReversed, Connection connection)
 	{
 		checkConnection(connection);
-		loadIndex(tableName);
-		checkKeyIsFound(tableName, keyName);
+		loadIndex(tableName, keyName);
 
 		Indexes::iterator row;
 		int offsetIndex;
@@ -96,7 +100,7 @@ namespace DatabaseLib
 		}
 		unsigned offset = row->second[offsetIndex];
 
-		Cursor currentRow(row, tablesIndexes[tableName][keyName].end(), offsetIndex);
+		Cursor currentRow(row, tablesIndexes[tableName][keyName].end(), offsetIndex, keyName);
 		connections[connection.getConnectionId()][tableName] = currentRow;
 
 		return readDataByOffset(tableName, offset);
@@ -106,10 +110,10 @@ namespace DatabaseLib
 	{
 		Cursor cursor = getCurrentCursor(tableName, connection);
 
-		if (cursor.offsetIndex >= cursor.currentRow->second.size() - 1)
+		if ((unsigned)cursor.offsetIndex >= cursor.currentRow->second.size() - 1)
 		{
 			cursor.currentRow++;
-			checkDataIsAvailable(cursor);
+			checkIfDataIsAvailable(cursor);
 			cursor.offsetIndex = 0u;
 		}
 		else
@@ -129,7 +133,7 @@ namespace DatabaseLib
 		if (cursor.offsetIndex == 0)
 		{
 			cursor.currentRow--;
-			checkDataIsAvailable(cursor);
+			checkIfDataIsAvailable(cursor);
 			auto offsets = cursor.currentRow->second;
 			cursor.offsetIndex = offsets.size() - 1;
 		}
@@ -166,28 +170,28 @@ namespace DatabaseLib
 		return json::parse(value);
 	}
 
-	void Database::loadIndex(std::string tableName) 
+	void Database::loadIndex(std::string tableName, std::string keyName)
 	{
-		if (tablesIndexes.find(tableName) == tablesIndexes.end())
+		if (tablesIndexes.find(tableName) == tablesIndexes.end() || 
+			tablesIndexes[tableName].find(keyName) == tablesIndexes[tableName].end())
 		{
-			json indexes = readJsonFromFile(tableName + INDEX_FILE);
+			json indexes = readJsonFromFile(tableName + "_" + keyName + JSON_EXT);
 			if (indexes.is_null())
 			{
-				throw DatabaseException("Table not found: " + tableName, ErrorCode::TABLE_NOT_FOUND);
+				throw DatabaseException("Table or key not found: " + tableName + ", " + keyName, ErrorCode::NOT_FOUND);
 			}
 			std::unordered_map<std::string, std::map<json, std::vector<unsigned>, JsonComparator>> keysMap;
 
 			for (auto& index : indexes)
 			{
 				auto keyValue = index.items().begin();
-				keysMap[keyValue.key()][keyValue.value()] = index["offsets"].get<std::vector<unsigned>>();
-			
+				keysMap[keyValue.key()][keyValue.value()] = index["offsets"].get<std::vector<unsigned>>();		
 			}
 			tablesIndexes[tableName] = keysMap;
 		}
 	}
 
-	void Database::checkKeyIsFound(std::string tableName, std::string key)
+	void Database::checkIfKeyIsFound(std::string tableName, std::string key)
 	{
 		if (tablesIndexes[tableName].find(key) == tablesIndexes[tableName].end())
 		{
@@ -195,15 +199,7 @@ namespace DatabaseLib
 		}
 	}
 
-	void Database::checkCursorIsOpened(Cursor cursor)
-	{
-		if (cursor.offsetIndex == -1)
-		{
-			throw DatabaseException("Cursor wasn't opened", ErrorCode::CURSOR_NOT_OPENED);
-		}
-	}
-
-	void Database::checkDataIsAvailable(Cursor cursor)
+	void Database::checkIfDataIsAvailable(Cursor cursor)
 	{
 		if (cursor.currentRow == cursor.end)
 		{
@@ -219,12 +215,26 @@ namespace DatabaseLib
 		}
 	}
 
+	void Database::checkIfTableExists(std::string tableName, json tablesMeta)
+	{
+		if (tablesMeta.is_null() || tablesMeta.empty() || !tablesMeta.contains(tableName))
+		{
+			throw DatabaseException("Table not found: " + tableName, ErrorCode::TABLE_NOT_FOUND);
+		}
+	}
+
 	Cursor Database::getCurrentCursor(std::string tableName, Connection connection)
 	{
 		checkConnection(connection);
-		loadIndex(tableName);
+		json tablesMeta = readJsonFromFile(META_FILE);
+		checkIfTableExists(tableName, tablesMeta);
+		
 		Cursor cursor = connections[connection.getConnectionId()][tableName];
-		checkCursorIsOpened(cursor);
+		if (cursor.offsetIndex == -1)
+		{
+			throw DatabaseException("Cursor wasn't opened", ErrorCode::CURSOR_NOT_OPENED);
+		}
+		loadIndex(tableName, cursor.keyName);
 
 		return cursor;
 	}

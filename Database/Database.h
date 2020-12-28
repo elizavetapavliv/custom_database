@@ -8,26 +8,24 @@
 
 namespace DatabaseLib
 {
-	
-
 	class DATABASE_API Database
 	{
 	private:
 		std::string META_FILE = "tables_meta.json";
 		std::string TXT_EXT = ".txt";
-		std::string INDEX_FILE = "_index.json";
+		std::string JSON_EXT = ".json";
 
 		std::unordered_map<unsigned, std::unordered_map<std::string, Cursor>> connections;
 
 		std::unordered_map<std::string, std::unordered_map<std::string, Indexes>> tablesIndexes;
 
 		json readJsonFromFile(std::string fileName);
-		void loadIndex(std::string tableName);
+		void loadIndex(std::string tableName, std::string keyName);
 		json readDataByOffset(std::string tableName, unsigned offset);
-		void checkKeyIsFound(std::string tableName, std::string key);
-		void checkCursorIsOpened(Cursor cursor);
-		void checkDataIsAvailable(Cursor cursor);
+		void checkIfKeyIsFound(std::string tableName, std::string key);
+		void checkIfDataIsAvailable(Cursor cursor);
 		void checkConnection(Connection connection);
+		void checkIfTableExists(std::string tableName, json tablesMeta);
 		Cursor getCurrentCursor(std::string tableName, Connection connection);
 	public:
 		Connection connect();
