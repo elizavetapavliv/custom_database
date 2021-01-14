@@ -16,6 +16,10 @@ namespace DatabaseLib
 				{
 					return true;
 				}
+				else if (itA.value() > itB.value())
+				{
+					return false;
+				}
 				itA++;
 				itB++;
 			}

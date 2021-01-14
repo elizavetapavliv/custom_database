@@ -27,9 +27,9 @@ namespace DatabaseLib
 		tablesMeta = tablesMeta.is_null() ? json::object() : tablesMeta;
  		tablesMeta[tableName]["keys"] = keysJson;
 
-		for (auto key : keysJson)
+		for (auto key : keysJson.items())
 		{
-			std::ofstream tableIndexFile(tableName + "_" + key.dump() + JSON_EXT);
+			std::ofstream tableIndexFile(tableName + "_" + key.key() + JSON_EXT);
 			tableIndexFile << json::array().dump();
 		}
 
@@ -44,9 +44,9 @@ namespace DatabaseLib
 		ensureTableExists(tableName, tablesMeta);
 
 		json keysJson = tablesMeta[tableName]["keys"];
-		for (auto key : keysJson)
+		for (auto key : keysJson.items())
 		{
-			remove((tableName + "_" + key.dump() + JSON_EXT).c_str());
+			remove((tableName + "_" + key.key() + JSON_EXT).c_str());
 		}
 
 		tablesMeta.erase(tableName);
@@ -149,6 +149,75 @@ namespace DatabaseLib
 		return readDataByOffset(tableName, offset);
 	}
 
+	void Database::appendRow(std::string tableName, json keyJson, json value, Connection connection)
+	{
+		ensureIsConnected(connection);
+		json tablesMeta = readJsonFromFile(META_FILE);
+		ensureTableExists(tableName, tablesMeta);
+
+		std::ofstream tableFile(tableName + TXT_EXT, std::ios_base::app);
+		tableFile.seekp(0, std::ios::end);
+		unsigned pos = tableFile.tellp();
+
+		for (auto key : keyJson.items())
+		{
+			std::string keyName = key.key();
+			loadIndex(tableName, keyName);
+
+			auto curr = tablesIndexes[tableName][keyName].find(key.value());
+			auto end = tablesIndexes[tableName][keyName].end();
+			if (curr == end)
+			{
+				tablesIndexes[tableName][keyName][key.value()] = { pos };
+			}
+			else
+			{
+				curr->second.push_back(pos);
+			}
+
+			dumpIndex(tableName, keyName);
+
+			value[keyName] = key.value();
+		}
+
+		tableFile << value.dump() << std::endl;
+	}
+
+	void Database::removeRow(std::string tableName, Connection connection)
+	{
+		Cursor cursor = getCurrentCursor(tableName, connection);
+		unsigned offset = cursor.currentRow->second[cursor.offsetIndex];
+		json toRemove = readDataByOffset(tableName, offset);
+
+		json tablesMeta = readJsonFromFile(META_FILE);
+		json associatedKeys = tablesMeta[tableName]["keys"];
+		for (auto key : associatedKeys.items())
+		{
+			std::string keyName = key.key();
+			json keyValue = toRemove[keyName];
+			auto entry = tablesIndexes[tableName][keyName][key.value()];
+			entry.erase(std::remove(entry.begin(), entry.end(), offset), entry.end());
+			dumpIndex(tableName, keyName);
+		}
+
+		std::ifstream tableFileIn(tableName + TXT_EXT);
+		std::string value, rest;
+		unsigned currOffset = tableFileIn.tellg();
+		while (std::getline(tableFileIn, value))
+		{
+			if (currOffset != offset)
+			{
+				rest.append(value);
+				rest.append("\n");
+			}
+			currOffset = tableFileIn.tellg();
+		}
+		tableFileIn.close();
+
+		std::ofstream tableFileOut(tableName + TXT_EXT);
+		tableFileOut << rest;
+	}
+
 	json Database::readJsonFromFile(std::string fileName)
 	{
 		json result;
@@ -191,6 +260,17 @@ namespace DatabaseLib
 			}
 			tablesIndexes[tableName] = keysMap;
 		}
+	}
+
+	void Database::dumpIndex(std::string tableName, std::string keyName)
+	{
+		json index = json::array();
+		for (auto kv : tablesIndexes[tableName][keyName])
+		{
+			index.push_back({ { keyName, kv.first }, { "offsets", kv.second } });
+		}
+		std::ofstream indexFile(tableName + "_" + keyName + JSON_EXT);
+		indexFile << index.dump();
 	}
 
 	void Database::ensureKeyIsFound(std::string tableName, std::string key)

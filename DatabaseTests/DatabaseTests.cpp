@@ -19,6 +19,10 @@ namespace DatabaseTests
 			keys["emailKey"] = "email";
 
 			database.createTable("clients", keys, connection);
+			database.appendRow("clients", { {"emailKey", "jh@mail.com"} ,  { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "hello, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", "j23@mail.com"} , { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "bye, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", "mary@mail.com"}, { "idNameKey", {{"id", 2}, {"name", "Mary"}} } }, { {"message", "hello, Mary"} }, connection);
+			database.appendRow("clients", { {"emailKey", "alex@mail.com"}, { "idNameKey", {{"id", 3}, {"name", "Alex"}} } }, { {"message", "hello, Alex"} }, connection);
 		}
 	public:
 		TEST_METHOD(ConnectToDatabase)
@@ -94,6 +98,7 @@ namespace DatabaseTests
 		{
 			DatabaseLib::Database database;
 			DatabaseLib::Connection connection = database.connect();
+			createTable(database, connection);
 
 			json keyValue;
 			keyValue["emailKey"] = "jh@mail.com";
@@ -105,30 +110,30 @@ namespace DatabaseTests
 			}
 			catch (DatabaseLib::DatabaseException ex)
 			{
-				Assert::IsTrue(DatabaseLib::ErrorCode::TABLE_NOT_FOUND == ex.getErrorNumber());
+				Assert::IsTrue(DatabaseLib::ErrorCode::NOT_FOUND == ex.getErrorNumber());
 				exceptionIsThrown = true;
 			}
 			Assert::IsTrue(exceptionIsThrown);
+
+			database.removeTable("clients", connection);
+			database.disconnect(connection);
 		}
 
 		TEST_METHOD(GetRowByKey)
 		{
 			DatabaseLib::Database database;
 			DatabaseLib::Connection connection = database.connect();
-
-			//createTable(database);
-			//init table clients
-
+			createTable(database, connection);
+			
 			json keyValue;
-			keyValue["emailKey"] = "mari@mail.com";
+			keyValue["emailKey"] = "mary@mail.com";
 		
+			json row = database.getRowByKey("clients", keyValue, connection);
 
-			//change users to clients
-			json row = database.getRowByKey("users", keyValue, connection);
-			//removeTable
+			database.removeTable("clients", connection);
 			database.disconnect(connection);
 
-			std::string expectedMessage = "hello, Mari";
+			std::string expectedMessage = "hello, Mary";
 
 			Assert::AreEqual(expectedMessage, row["message"].get<std::string>());
 		}
@@ -137,14 +142,17 @@ namespace DatabaseTests
 		{
 			DatabaseLib::Database database;
 			DatabaseLib::Connection connection = database.connect();
+			createTable(database, connection);
 
 			json keyValue;
 			keyValue["idNameKey"] = { {"id", 1}, {"name", "John"} };
 
-			json row = database.getRowByKey("users", keyValue, connection);
+			json row = database.getRowByKey("clients", keyValue, connection);
+
+			database.removeTable("clients", connection);
 			database.disconnect(connection);
 			
-			std::string expectedMessage = "hello, Jhon";
+			std::string expectedMessage = "hello, John";
 
 			Assert::AreEqual(expectedMessage, row["message"].get<std::string>());
 		}
@@ -153,35 +161,40 @@ namespace DatabaseTests
 		{
 			DatabaseLib::Database database;
 			DatabaseLib::Connection connection = database.connect();
+			createTable(database, connection);
 
 			json keyValue;
-			keyValue["email"] = "mari@mail.com";
+			keyValue["addressKey"] = "mary@mail.com";
 
 			bool exceptionIsThrown = false;
 			try
 			{
-				json row = database.getRowByKey("users", keyValue, connection);
+				json row = database.getRowByKey("clients", keyValue, connection);
 			}
 			catch (DatabaseLib::DatabaseException ex)
 			{
-				Assert::IsTrue(DatabaseLib::ErrorCode::KEY_NOT_FOUND == ex.getErrorNumber());
+				Assert::IsTrue(DatabaseLib::ErrorCode::NOT_FOUND == ex.getErrorNumber());
 				exceptionIsThrown = true;
 			}
 			Assert::IsTrue(exceptionIsThrown);
+
+			database.removeTable("clients", connection);
+			database.disconnect(connection);
 		}
 
 		TEST_METHOD(GetRowByNotExistingKeyValue)
 		{
 			DatabaseLib::Database database;
 			DatabaseLib::Connection connection = database.connect();
+			createTable(database, connection);
 
 			json keyValue;
-			keyValue["emailKey"] = "alex@mail.com";
+			keyValue["emailKey"] = "george@mail.com";
 
 			bool exceptionIsThrown = false;
 			try
 			{
-				json row = database.getRowByKey("users", keyValue, connection);
+				json row = database.getRowByKey("clients", keyValue, connection);
 			}
 			catch (DatabaseLib::DatabaseException ex)
 			{
@@ -189,17 +202,23 @@ namespace DatabaseTests
 				exceptionIsThrown = true;
 			}
 			Assert::IsTrue(exceptionIsThrown);
+
+			database.removeTable("clients", connection);
+			database.disconnect(connection);
 		}
 
 		TEST_METHOD(GetRowInSortedTable)
 		{
 			DatabaseLib::Database database;
 			DatabaseLib::Connection connection = database.connect();
+			createTable(database, connection);
 
-			json row = database.getRowInSortedTable("users", "emailKey", false, connection);
+			json row = database.getRowInSortedTable("clients", "emailKey", false, connection);
+
+			database.removeTable("clients", connection);
 			database.disconnect(connection);
 
-			std::string expectedMessage = "bye, Jhon";
+			std::string expectedMessage = "hello, Alex";
 
 			Assert::AreEqual(expectedMessage, row["message"].get<std::string>());
 		}
@@ -208,11 +227,14 @@ namespace DatabaseTests
 		{
 			DatabaseLib::Database database;
 			DatabaseLib::Connection connection = database.connect();
+			createTable(database, connection);
 
-			json row = database.getRowInSortedTable("users", "emailKey", true, connection);
+			json row = database.getRowInSortedTable("clients", "emailKey", true, connection);
+
+			database.removeTable("clients", connection);
 			database.disconnect(connection);
 
-			std::string expectedMessage = "hello, Mari";
+			std::string expectedMessage = "hello, Mary";
 
 			Assert::AreEqual(expectedMessage, row["message"].get<std::string>());
 		}
@@ -221,11 +243,14 @@ namespace DatabaseTests
 		{
 			DatabaseLib::Database database;
 			DatabaseLib::Connection connection = database.connect();
+			createTable(database, connection);
 
-			json row = database.getRowInSortedTable("users", "idNameKey", true, connection);
+			json row = database.getRowInSortedTable("clients", "idNameKey", true, connection);
+
+			database.removeTable("clients", connection);
 			database.disconnect(connection);
 
-			std::string expectedMessage = "hello, Mari";
+			std::string expectedMessage = "hello, Alex";
 
 			Assert::AreEqual(expectedMessage, row["message"].get<std::string>());
 		}
@@ -235,14 +260,18 @@ namespace DatabaseTests
 			DatabaseLib::Database database;
 			DatabaseLib::Connection connection = database.connect();
 
+			createTable(database, connection);
+
 			json keyValue;
 			keyValue["emailKey"] = "j23@mail.com";
 
-			database.getRowByKey("users", keyValue, connection);
-			json nextRow = database.getNextRow("users", connection);
+			database.getRowByKey("clients", keyValue, connection);
+			json nextRow = database.getNextRow("clients", connection);
+
+			database.removeTable("clients", connection);
 			database.disconnect(connection);
 
-			std::string expectedMessage = "hello, Jhon";
+			std::string expectedMessage = "hello, John";
 
 			Assert::AreEqual(expectedMessage, nextRow["message"].get<std::string>());
 		}
@@ -251,13 +280,14 @@ namespace DatabaseTests
 		{
 			DatabaseLib::Database database;
 			DatabaseLib::Connection connection = database.connect();
+			createTable(database, connection);
 
-			database.getRowInSortedTable("users", "emailKey", true, connection);
+			database.getRowInSortedTable("clients", "emailKey", true, connection);
 
 			bool exceptionIsThrown = false;
 			try
 			{
-				json nextRow = database.getNextRow("users", connection);
+				json nextRow = database.getNextRow("clients", connection);
 			}
 			catch (DatabaseLib::DatabaseException ex)
 			{
@@ -265,6 +295,9 @@ namespace DatabaseTests
 				exceptionIsThrown = true;
 			}
 			Assert::IsTrue(exceptionIsThrown);
+
+			database.removeTable("clients", connection);
+			database.disconnect(connection);
 		}
 
 		TEST_METHOD(CursorNotOpened)
@@ -291,15 +324,18 @@ namespace DatabaseTests
 		{
 			DatabaseLib::Database database;
 			DatabaseLib::Connection connection = database.connect();
+			createTable(database, connection);
 
 			json keyValue;
 			keyValue["idNameKey"] = { {"id", 1}, {"name", "John"} };
 
-			database.getRowByKey("users", keyValue, connection);
-			json nextRow = database.getNextRow("users", connection);
+			database.getRowByKey("clients", keyValue, connection);
+			json nextRow = database.getNextRow("clients", connection);
+
+			database.removeTable("clients", connection);
 			database.disconnect(connection);
 
-			std::string expectedMessage = "bye, Jhon";
+			std::string expectedMessage = "bye, John";
 
 			Assert::AreEqual(expectedMessage, nextRow["message"].get<std::string>());
 		}
@@ -308,15 +344,18 @@ namespace DatabaseTests
 		{
 			DatabaseLib::Database database;
 			DatabaseLib::Connection connection = database.connect();
+			createTable(database, connection);
 
 			json keyValue;
 			keyValue["emailKey"] = "jh@mail.com";
 
-			database.getRowByKey("users", keyValue, connection);
-			json prevRow = database.getPrevRow("users", connection);
+			database.getRowByKey("clients", keyValue, connection);
+			json prevRow = database.getPrevRow("clients", connection);
+			
+			database.removeTable("clients", connection);
 			database.disconnect(connection);
 
-			std::string expectedMessage = "bye, Jhon";
+			std::string expectedMessage = "bye, John";
 
 			Assert::AreEqual(expectedMessage, prevRow["message"].get<std::string>());
 		}
@@ -325,13 +364,14 @@ namespace DatabaseTests
 		{
 			DatabaseLib::Database database;
 			DatabaseLib::Connection connection = database.connect();
+			createTable(database, connection);
 
-			database.getRowInSortedTable("users", "emailKey", false, connection);
+			database.getRowInSortedTable("clients", "emailKey", false, connection);
 
 			bool exceptionIsThrown = false;
 			try
 			{
-				json nextRow = database.getPrevRow("users", connection);
+				json nextRow = database.getPrevRow("clients", connection);
 			}
 			catch (DatabaseLib::DatabaseException ex)
 			{
@@ -339,21 +379,48 @@ namespace DatabaseTests
 				exceptionIsThrown = true;
 			}
 			Assert::IsTrue(exceptionIsThrown);
+
+			database.removeTable("clients", connection);
+			database.disconnect(connection);
 		}
 
 		TEST_METHOD(GetPrevTheSameKey)
 		{
 			DatabaseLib::Database database;
 			DatabaseLib::Connection connection = database.connect();
+			createTable(database, connection);
 
-			database.getRowInSortedTable("users", "idNameKey", true, connection);
-			database.getPrevRow("users", connection);
-			json prevRow = database.getPrevRow("users", connection);
+			database.getRowInSortedTable("clients", "idNameKey", true, connection);
+			database.getPrevRow("clients", connection);
+			database.getPrevRow("clients", connection);
+			json prevRow = database.getPrevRow("clients", connection);
+
+			database.removeTable("clients", connection);
 			database.disconnect(connection);
 
-			std::string expectedMessage = "hello, Jhon";
+			std::string expectedMessage = "hello, John";
 
 			Assert::AreEqual(expectedMessage, prevRow["message"].get<std::string>());
+		}
+
+		TEST_METHOD(RemoveRow)
+		{
+			DatabaseLib::Database database;
+			DatabaseLib::Connection connection = database.connect();
+			createTable(database, connection);
+
+			json keyValue;
+			keyValue["idNameKey"] = { {"id", 1}, {"name", "John"} };
+			database.getRowByKey("clients", keyValue, connection);
+
+			database.removeRow("clients", connection);
+
+			json row = database.getRowByKey("clients", keyValue, connection);
+			std::string expectedMessage = "bye, John";
+			Assert::AreEqual(expectedMessage, row["message"].get<std::string>());
+
+			database.removeTable("clients", connection);
+			database.disconnect(connection);
 		}
 
 	};
