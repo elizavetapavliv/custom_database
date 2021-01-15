@@ -157,7 +157,7 @@ namespace DatabaseLib
 
 		std::ofstream tableFile(tableName + TXT_EXT, std::ios_base::app);
 		tableFile.seekp(0, std::ios::end);
-		unsigned pos = tableFile.tellp();
+		auto pos = tableFile.tellp();
 
 		for (auto key : keyJson.items())
 		{
@@ -168,11 +168,11 @@ namespace DatabaseLib
 			auto end = tablesIndexes[tableName][keyName].end();
 			if (curr == end)
 			{
-				tablesIndexes[tableName][keyName][key.value()] = { pos };
+				tablesIndexes[tableName][keyName][key.value()] = { (unsigned)pos };
 			}
 			else
 			{
-				curr->second.push_back(pos);
+				curr->second.push_back((unsigned)pos);
 			}
 
 			dumpIndex(tableName, keyName);
@@ -202,15 +202,15 @@ namespace DatabaseLib
 
 		std::ifstream tableFileIn(tableName + TXT_EXT);
 		std::string value, rest;
-		unsigned currOffset = tableFileIn.tellg();
+		auto currOffset = tableFileIn.tellg();
 		while (std::getline(tableFileIn, value))
 		{
-			if (currOffset != offset)
+			if ((unsigned)currOffset != offset)
 			{
 				rest.append(value);
 				rest.append("\n");
 			}
-			currOffset = tableFileIn.tellg();
+			currOffset = (unsigned)tableFileIn.tellg();
 		}
 		tableFileIn.close();
 
