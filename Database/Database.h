@@ -34,6 +34,8 @@ namespace DatabaseLib
 		void disconnect(Connection connection);
 		void createTable(std::string tableName, json keysJson, Connection connection);
 		void removeTable(std::string tableName, Connection connection);
+		void addKey(std::string tableName, json keysJson, Connection connection);
+		void removeKey(std::string tableName, std::string keyName, Connection connection);
 
 		json getRowByKey(std::string tableName, json keyJson, Connection connection);
 		json getRowInSortedTable(std::string tableName, std::string keyName,

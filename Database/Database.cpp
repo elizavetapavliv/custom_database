@@ -56,6 +56,57 @@ namespace DatabaseLib
 		remove((tableName + TXT_EXT).c_str());
 	}
 
+	void Database::addKey(std::string tableName, json keysJson, Connection connection)
+	{
+		ensureIsConnected(connection);
+		json tablesMeta = readJsonFromFile(META_FILE);
+		auto newKey = keysJson.items().begin();
+		std::string keyName = newKey.key();
+		tablesMeta[tableName]["keys"][keyName] = newKey.value();
+
+		std::ifstream tableFileIn(tableName + TXT_EXT);
+		std::string value;
+		auto pos = tableFileIn.tellg();
+		while (std::getline(tableFileIn, value))
+		{
+			json entry = json::parse(value), key;
+			for (std::string keyColumn : newKey.value())
+			{
+				key[keyColumn] = entry[keyColumn];
+			}
+			auto curr = tablesIndexes[tableName][keyName].find(key);
+			auto end = tablesIndexes[tableName][keyName].end();
+			if (curr == end)
+			{
+				tablesIndexes[tableName][keyName][key] = { (unsigned)pos };
+			}
+			else
+			{
+				curr->second.push_back((unsigned)pos);
+			}
+			pos = tableFileIn.tellg();
+		}
+		tableFileIn.close();
+
+		dumpIndex(tableName, keyName);
+
+		std::ofstream tablesMetaFile(META_FILE);
+		tablesMetaFile << tablesMeta.dump();
+	}
+
+	void Database::removeKey(std::string tableName, std::string keyName, Connection connection)
+	{
+		ensureIsConnected(connection);
+		json tablesMeta = readJsonFromFile(META_FILE);
+		tablesMeta[tableName]["keys"].erase(keyName);
+		std::ofstream tablesMetaFile(META_FILE);
+		tablesMetaFile << tablesMeta.dump();
+
+		tablesIndexes[tableName].erase(keyName);
+
+		std::remove((tableName + "_" + keyName + JSON_EXT).c_str());
+	}
+
 	json Database::getRowByKey(std::string tableName, json keyJson, Connection connection)
 	{
 		ensureIsConnected(connection);
@@ -168,7 +219,7 @@ namespace DatabaseLib
 			auto end = tablesIndexes[tableName][keyName].end();
 			if (curr == end)
 			{
-				tablesIndexes[tableName][keyName][key.value()] = { (unsigned)pos };
+				tablesIndexes[tableName][keyName].insert({ {key.value(), { (unsigned)pos }} });
 			}
 			else
 			{
@@ -177,7 +228,10 @@ namespace DatabaseLib
 
 			dumpIndex(tableName, keyName);
 
-			value[keyName] = key.value();
+			for (auto field : key.value().items())
+			{
+				value[field.key()] = field.value();
+			}
 		}
 
 		tableFile << value.dump() << std::endl;
@@ -194,8 +248,12 @@ namespace DatabaseLib
 		for (auto key : associatedKeys.items())
 		{
 			std::string keyName = key.key();
-			json keyValue = toRemove[keyName];
-			auto entry = tablesIndexes[tableName][keyName][key.value()];
+			json keyValue;
+			for (std::string keyColumn : key.value()) 
+			{
+				keyValue[keyColumn] = toRemove[keyColumn];
+			}
+			auto entry = tablesIndexes[tableName][keyName][keyValue];
 			entry.erase(std::remove(entry.begin(), entry.end(), offset), entry.end());
 			dumpIndex(tableName, keyName);
 		}
@@ -258,7 +316,7 @@ namespace DatabaseLib
 				auto keyValue = index.items().begin();
 				keysMap[keyValue.key()][keyValue.value()] = index["offsets"].get<std::vector<unsigned>>();		
 			}
-			tablesIndexes[tableName] = keysMap;
+			tablesIndexes[tableName][keyName] = keysMap[keyName];
 		}
 	}
 

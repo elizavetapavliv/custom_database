@@ -16,13 +16,13 @@ namespace DatabaseTests
 		{
 			json keys;
 			keys["idNameKey"] = {"id", "name"};
-			keys["emailKey"] = "email";
+			keys["emailKey"] = { "email" };
 
 			database.createTable("clients", keys, connection);
-			database.appendRow("clients", { {"emailKey", "jh@mail.com"} ,  { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "hello, John"} }, connection);
-			database.appendRow("clients", { {"emailKey", "j23@mail.com"} , { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "bye, John"} }, connection);
-			database.appendRow("clients", { {"emailKey", "mary@mail.com"}, { "idNameKey", {{"id", 2}, {"name", "Mary"}} } }, { {"message", "hello, Mary"} }, connection);
-			database.appendRow("clients", { {"emailKey", "alex@mail.com"}, { "idNameKey", {{"id", 3}, {"name", "Alex"}} } }, { {"message", "hello, Alex"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "jh@mail.com"}}},   { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "hello, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "j23@mail.com"}}},  { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "bye, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "mary@mail.com"}}}, { "idNameKey", {{"id", 2}, {"name", "Mary"}} } }, { {"message", "hello, Mary"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "alex@mail.com"}}}, { "idNameKey", {{"id", 3}, {"name", "Alex"}} } }, { {"message", "hello, Alex"} }, connection);
 		}
 	public:
 		TEST_METHOD(ConnectToDatabase)
@@ -70,7 +70,7 @@ namespace DatabaseTests
 			fileContent << file.rdbuf();
 
 			json expected;
-			expected["clients"]["keys"] = { {"idNameKey", {"id", "name"}}, {"emailKey", "email"} };
+			expected["clients"]["keys"] = { {"idNameKey", {"id", "name"}}, {"emailKey", {"email"}} };
 
 			Assert::AreEqual(expected.dump(), fileContent.str());
 			database.removeTable("clients", connection);
@@ -409,6 +409,24 @@ namespace DatabaseTests
 			DatabaseLib::Connection connection = database.connect();
 			createTable(database, connection);
 
+			database.getRowInSortedTable("clients", "emailKey", false, connection);
+
+			database.removeRow("clients", connection);
+
+			json row = database.getNextRow("clients", connection);
+			std::string expectedMessage = "bye, John";
+			Assert::AreEqual(expectedMessage, row["message"].get<std::string>());
+
+			database.removeTable("clients", connection);
+			database.disconnect(connection);
+		}
+
+		TEST_METHOD(RemoveRowByCompositeKey)
+		{
+			DatabaseLib::Database database;
+			DatabaseLib::Connection connection = database.connect();
+			createTable(database, connection);
+
 			json keyValue;
 			keyValue["idNameKey"] = { {"id", 1}, {"name", "John"} };
 			database.getRowByKey("clients", keyValue, connection);
@@ -417,6 +435,66 @@ namespace DatabaseTests
 
 			json row = database.getRowByKey("clients", keyValue, connection);
 			std::string expectedMessage = "bye, John";
+			Assert::AreEqual(expectedMessage, row["message"].get<std::string>());
+
+			database.removeTable("clients", connection);
+			database.disconnect(connection);
+		}
+
+		TEST_METHOD(AddKey)
+		{
+			DatabaseLib::Database database;
+			DatabaseLib::Connection connection = database.connect();
+			createTable(database, connection);
+
+			database.addKey("clients", { {"nameEmailKey", {"name", "email"}} }, connection);
+
+			json row = database.getRowInSortedTable("clients", "nameEmailKey", false, connection);
+			std::string expectedMessage = "hello, Alex";
+			Assert::AreEqual(expectedMessage, row["message"].get<std::string>());
+
+			database.removeTable("clients", connection);
+			database.disconnect(connection);
+		}
+
+		TEST_METHOD(RemoveKey)
+		{
+			DatabaseLib::Database database;
+			DatabaseLib::Connection connection = database.connect();
+			createTable(database, connection);
+
+			database.removeKey("clients", "emailKey", connection);
+
+			json keyValue;
+			keyValue["emailKey"] = "mary@mail.com";
+
+			bool exceptionIsThrown = false;
+			try
+			{
+				json row = database.getRowByKey("clients", keyValue, connection);
+			}
+			catch (DatabaseLib::DatabaseException ex)
+			{
+				Assert::IsTrue(DatabaseLib::ErrorCode::NOT_FOUND == ex.getErrorNumber());
+				exceptionIsThrown = true;
+			}
+			Assert::IsTrue(exceptionIsThrown);
+
+			database.removeTable("clients", connection);
+			database.disconnect(connection);
+		}
+
+		TEST_METHOD(InsertRow)
+		{
+			DatabaseLib::Database database;
+			DatabaseLib::Connection connection = database.connect();
+			createTable(database, connection);
+
+			database.getRowInSortedTable("clients", "emailKey", false, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "bill@mail.com"}}},   { "idNameKey", {{"id", 1}, {"name", "Bill"}} } }, { {"message", "hello, Bill"} }, connection);
+			json row = database.getNextRow("clients", connection); 
+
+			std::string expectedMessage = "hello, Bill";
 			Assert::AreEqual(expectedMessage, row["message"].get<std::string>());
 
 			database.removeTable("clients", connection);
