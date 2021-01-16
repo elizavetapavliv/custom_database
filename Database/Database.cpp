@@ -2,6 +2,7 @@
 #include "Database.h"
 #include <fstream>
 #include <sstream>
+#include <mutex>
 
 namespace DatabaseLib
 {
@@ -22,6 +23,7 @@ namespace DatabaseLib
 
 	void Database::createTable(std::string tableName, json keysJson, Connection connection)
 	{
+		std::unique_lock lock(mutex_);
 		ensureIsConnected(connection);
 		json tablesMeta = readJsonFromFile(META_FILE);
 		tablesMeta = tablesMeta.is_null() ? json::object() : tablesMeta;
@@ -39,6 +41,7 @@ namespace DatabaseLib
 
 	void Database::removeTable(std::string tableName, Connection connection)
 	{
+		std::unique_lock lock(mutex_);
 		ensureIsConnected(connection);
 		json tablesMeta = readJsonFromFile(META_FILE);
 		ensureTableExists(tableName, tablesMeta);
@@ -58,6 +61,7 @@ namespace DatabaseLib
 
 	void Database::addKey(std::string tableName, json keysJson, Connection connection)
 	{
+		std::unique_lock lock(mutex_);
 		ensureIsConnected(connection);
 		json tablesMeta = readJsonFromFile(META_FILE);
 		auto newKey = keysJson.items().begin();
@@ -96,6 +100,7 @@ namespace DatabaseLib
 
 	void Database::removeKey(std::string tableName, std::string keyName, Connection connection)
 	{
+		std::unique_lock lock(mutex_);
 		ensureIsConnected(connection);
 		json tablesMeta = readJsonFromFile(META_FILE);
 		tablesMeta[tableName]["keys"].erase(keyName);
@@ -109,6 +114,7 @@ namespace DatabaseLib
 
 	json Database::getRowByKey(std::string tableName, json keyJson, Connection connection)
 	{
+		std::shared_lock lock(mutex_);
 		ensureIsConnected(connection);
 		
 		auto properties = keyJson.items().begin();
@@ -133,6 +139,7 @@ namespace DatabaseLib
 	json Database::getRowInSortedTable(std::string tableName, std::string keyName, 
 		bool isReversed, Connection connection)
 	{
+		std::shared_lock lock(mutex_);
 		ensureIsConnected(connection);
 		loadIndex(tableName, keyName);
 
@@ -161,6 +168,7 @@ namespace DatabaseLib
 
 	json Database::getNextRow(std::string tableName, Connection connection)
 	{
+		std::shared_lock lock(mutex_);
 		Cursor cursor = getCurrentCursor(tableName, connection);
 
 		if ((unsigned)cursor.offsetIndex >= cursor.currentRow->second.size() - 1)
@@ -181,6 +189,7 @@ namespace DatabaseLib
 
 	json Database::getPrevRow(std::string tableName, Connection connection)
 	{
+		std::shared_lock lock(mutex_);
 		Cursor cursor = getCurrentCursor(tableName, connection);
 
 		if (cursor.offsetIndex == 0)
@@ -202,6 +211,7 @@ namespace DatabaseLib
 
 	void Database::appendRow(std::string tableName, json keyJson, json value, Connection connection)
 	{
+		std::unique_lock lock(mutex_);
 		ensureIsConnected(connection);
 		json tablesMeta = readJsonFromFile(META_FILE);
 		ensureTableExists(tableName, tablesMeta);
@@ -239,6 +249,7 @@ namespace DatabaseLib
 
 	void Database::removeRow(std::string tableName, Connection connection)
 	{
+		std::unique_lock lock(mutex_);
 		Cursor cursor = getCurrentCursor(tableName, connection);
 		unsigned offset = cursor.currentRow->second[cursor.offsetIndex];
 		json toRemove = readDataByOffset(tableName, offset);

@@ -63,8 +63,9 @@ namespace DatabaseTests
 		{
 			DatabaseLib::Database database;
 			DatabaseLib::Connection connection = database.connect();
-			createTable(database, connection);
-
+			json keys = { {"emailKey", {"email"}}, {"idNameKey", {"id", "name"}} };
+			database.createTable("clients", keys, connection);
+			
 			std::ifstream file("tables_meta.json");
 			std::stringstream fileContent;
 			fileContent << file.rdbuf();
@@ -81,7 +82,8 @@ namespace DatabaseTests
 		{
 			DatabaseLib::Database database;
 			DatabaseLib::Connection connection = database.connect();
-			createTable(database, connection);
+			json keys = { {"emailKey", {"email"}}, {"idNameKey", {"id", "name"}} };
+			database.createTable("clients", keys, connection);
 			database.removeTable("clients", connection);
 			database.disconnect(connection);
 
@@ -98,7 +100,12 @@ namespace DatabaseTests
 		{
 			DatabaseLib::Database database;
 			DatabaseLib::Connection connection = database.connect();
-			createTable(database, connection);
+			json keys = { {"emailKey", {"email"}}, {"idNameKey", {"id", "name"}} };
+			database.createTable("clients", keys, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "jh@mail.com"}}},   { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "hello, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "j23@mail.com"}}},  { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "bye, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "mary@mail.com"}}}, { "idNameKey", {{"id", 2}, {"name", "Mary"}} } }, { {"message", "hello, Mary"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "alex@mail.com"}}}, { "idNameKey", {{"id", 3}, {"name", "Alex"}} } }, { {"message", "hello, Alex"} }, connection);
 
 			json keyValue;
 			keyValue["emailKey"] = "jh@mail.com";
@@ -123,7 +130,12 @@ namespace DatabaseTests
 		{
 			DatabaseLib::Database database;
 			DatabaseLib::Connection connection = database.connect();
-			createTable(database, connection);
+			json keys = { {"emailKey", {"email"}}, {"idNameKey", {"id", "name"}} };
+			database.createTable("clients", keys, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "jh@mail.com"}}},   { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "hello, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "j23@mail.com"}}},  { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "bye, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "mary@mail.com"}}}, { "idNameKey", {{"id", 2}, {"name", "Mary"}} } }, { {"message", "hello, Mary"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "alex@mail.com"}}}, { "idNameKey", {{"id", 3}, {"name", "Alex"}} } }, { {"message", "hello, Alex"} }, connection);
 			
 			json keyValue;
 			keyValue["emailKey"] = "mary@mail.com";
@@ -142,7 +154,12 @@ namespace DatabaseTests
 		{
 			DatabaseLib::Database database;
 			DatabaseLib::Connection connection = database.connect();
-			createTable(database, connection);
+			json keys = { {"emailKey", {"email"}}, {"idNameKey", {"id", "name"}} };
+			database.createTable("clients", keys, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "jh@mail.com"}}},   { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "hello, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "j23@mail.com"}}},  { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "bye, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "mary@mail.com"}}}, { "idNameKey", {{"id", 2}, {"name", "Mary"}} } }, { {"message", "hello, Mary"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "alex@mail.com"}}}, { "idNameKey", {{"id", 3}, {"name", "Alex"}} } }, { {"message", "hello, Alex"} }, connection);
 
 			json keyValue;
 			keyValue["idNameKey"] = { {"id", 1}, {"name", "John"} };
@@ -161,7 +178,12 @@ namespace DatabaseTests
 		{
 			DatabaseLib::Database database;
 			DatabaseLib::Connection connection = database.connect();
-			createTable(database, connection);
+			json keys = { {"emailKey", {"email"}}, {"idNameKey", {"id", "name"}} };
+			database.createTable("clients", keys, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "jh@mail.com"}}},   { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "hello, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "j23@mail.com"}}},  { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "bye, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "mary@mail.com"}}}, { "idNameKey", {{"id", 2}, {"name", "Mary"}} } }, { {"message", "hello, Mary"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "alex@mail.com"}}}, { "idNameKey", {{"id", 3}, {"name", "Alex"}} } }, { {"message", "hello, Alex"} }, connection);
 
 			json keyValue;
 			keyValue["addressKey"] = "mary@mail.com";
@@ -186,7 +208,12 @@ namespace DatabaseTests
 		{
 			DatabaseLib::Database database;
 			DatabaseLib::Connection connection = database.connect();
-			createTable(database, connection);
+			json keys = { {"emailKey", {"email"}}, {"idNameKey", {"id", "name"}} };
+			database.createTable("clients", keys, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "jh@mail.com"}}},   { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "hello, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "j23@mail.com"}}},  { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "bye, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "mary@mail.com"}}}, { "idNameKey", {{"id", 2}, {"name", "Mary"}} } }, { {"message", "hello, Mary"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "alex@mail.com"}}}, { "idNameKey", {{"id", 3}, {"name", "Alex"}} } }, { {"message", "hello, Alex"} }, connection);
 
 			json keyValue;
 			keyValue["emailKey"] = "george@mail.com";
@@ -211,7 +238,12 @@ namespace DatabaseTests
 		{
 			DatabaseLib::Database database;
 			DatabaseLib::Connection connection = database.connect();
-			createTable(database, connection);
+			json keys = { {"emailKey", {"email"}}, {"idNameKey", {"id", "name"}} };
+			database.createTable("clients", keys, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "jh@mail.com"}}},   { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "hello, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "j23@mail.com"}}},  { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "bye, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "mary@mail.com"}}}, { "idNameKey", {{"id", 2}, {"name", "Mary"}} } }, { {"message", "hello, Mary"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "alex@mail.com"}}}, { "idNameKey", {{"id", 3}, {"name", "Alex"}} } }, { {"message", "hello, Alex"} }, connection);
 
 			json row = database.getRowInSortedTable("clients", "emailKey", false, connection);
 
@@ -227,7 +259,12 @@ namespace DatabaseTests
 		{
 			DatabaseLib::Database database;
 			DatabaseLib::Connection connection = database.connect();
-			createTable(database, connection);
+			json keys = { {"emailKey", {"email"}}, {"idNameKey", {"id", "name"}} };
+			database.createTable("clients", keys, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "jh@mail.com"}}},   { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "hello, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "j23@mail.com"}}},  { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "bye, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "mary@mail.com"}}}, { "idNameKey", {{"id", 2}, {"name", "Mary"}} } }, { {"message", "hello, Mary"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "alex@mail.com"}}}, { "idNameKey", {{"id", 3}, {"name", "Alex"}} } }, { {"message", "hello, Alex"} }, connection);
 
 			json row = database.getRowInSortedTable("clients", "emailKey", true, connection);
 
@@ -243,7 +280,12 @@ namespace DatabaseTests
 		{
 			DatabaseLib::Database database;
 			DatabaseLib::Connection connection = database.connect();
-			createTable(database, connection);
+			json keys = { {"emailKey", {"email"}}, {"idNameKey", {"id", "name"}} };
+			database.createTable("clients", keys, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "jh@mail.com"}}},   { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "hello, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "j23@mail.com"}}},  { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "bye, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "mary@mail.com"}}}, { "idNameKey", {{"id", 2}, {"name", "Mary"}} } }, { {"message", "hello, Mary"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "alex@mail.com"}}}, { "idNameKey", {{"id", 3}, {"name", "Alex"}} } }, { {"message", "hello, Alex"} }, connection);
 
 			json row = database.getRowInSortedTable("clients", "idNameKey", true, connection);
 
@@ -260,7 +302,12 @@ namespace DatabaseTests
 			DatabaseLib::Database database;
 			DatabaseLib::Connection connection = database.connect();
 
-			createTable(database, connection);
+			json keys = { {"emailKey", {"email"}}, {"idNameKey", {"id", "name"}} };
+			database.createTable("clients", keys, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "jh@mail.com"}}},   { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "hello, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "j23@mail.com"}}},  { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "bye, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "mary@mail.com"}}}, { "idNameKey", {{"id", 2}, {"name", "Mary"}} } }, { {"message", "hello, Mary"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "alex@mail.com"}}}, { "idNameKey", {{"id", 3}, {"name", "Alex"}} } }, { {"message", "hello, Alex"} }, connection);
 
 			json keyValue;
 			keyValue["emailKey"] = "j23@mail.com";
@@ -280,7 +327,12 @@ namespace DatabaseTests
 		{
 			DatabaseLib::Database database;
 			DatabaseLib::Connection connection = database.connect();
-			createTable(database, connection);
+			json keys = { {"emailKey", {"email"}}, {"idNameKey", {"id", "name"}} };
+			database.createTable("clients", keys, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "jh@mail.com"}}},   { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "hello, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "j23@mail.com"}}},  { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "bye, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "mary@mail.com"}}}, { "idNameKey", {{"id", 2}, {"name", "Mary"}} } }, { {"message", "hello, Mary"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "alex@mail.com"}}}, { "idNameKey", {{"id", 3}, {"name", "Alex"}} } }, { {"message", "hello, Alex"} }, connection);
 
 			database.getRowInSortedTable("clients", "emailKey", true, connection);
 
@@ -324,7 +376,12 @@ namespace DatabaseTests
 		{
 			DatabaseLib::Database database;
 			DatabaseLib::Connection connection = database.connect();
-			createTable(database, connection);
+			json keys = { {"emailKey", {"email"}}, {"idNameKey", {"id", "name"}} };
+			database.createTable("clients", keys, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "jh@mail.com"}}},   { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "hello, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "j23@mail.com"}}},  { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "bye, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "mary@mail.com"}}}, { "idNameKey", {{"id", 2}, {"name", "Mary"}} } }, { {"message", "hello, Mary"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "alex@mail.com"}}}, { "idNameKey", {{"id", 3}, {"name", "Alex"}} } }, { {"message", "hello, Alex"} }, connection);
 
 			json keyValue;
 			keyValue["idNameKey"] = { {"id", 1}, {"name", "John"} };
@@ -344,7 +401,12 @@ namespace DatabaseTests
 		{
 			DatabaseLib::Database database;
 			DatabaseLib::Connection connection = database.connect();
-			createTable(database, connection);
+			json keys = { {"emailKey", {"email"}}, {"idNameKey", {"id", "name"}} };
+			database.createTable("clients", keys, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "jh@mail.com"}}},   { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "hello, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "j23@mail.com"}}},  { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "bye, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "mary@mail.com"}}}, { "idNameKey", {{"id", 2}, {"name", "Mary"}} } }, { {"message", "hello, Mary"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "alex@mail.com"}}}, { "idNameKey", {{"id", 3}, {"name", "Alex"}} } }, { {"message", "hello, Alex"} }, connection);
 
 			json keyValue;
 			keyValue["emailKey"] = "jh@mail.com";
@@ -364,7 +426,12 @@ namespace DatabaseTests
 		{
 			DatabaseLib::Database database;
 			DatabaseLib::Connection connection = database.connect();
-			createTable(database, connection);
+			json keys = { {"emailKey", {"email"}}, {"idNameKey", {"id", "name"}} };
+			database.createTable("clients", keys, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "jh@mail.com"}}},   { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "hello, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "j23@mail.com"}}},  { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "bye, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "mary@mail.com"}}}, { "idNameKey", {{"id", 2}, {"name", "Mary"}} } }, { {"message", "hello, Mary"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "alex@mail.com"}}}, { "idNameKey", {{"id", 3}, {"name", "Alex"}} } }, { {"message", "hello, Alex"} }, connection);
 
 			database.getRowInSortedTable("clients", "emailKey", false, connection);
 
@@ -388,7 +455,12 @@ namespace DatabaseTests
 		{
 			DatabaseLib::Database database;
 			DatabaseLib::Connection connection = database.connect();
-			createTable(database, connection);
+			json keys = { {"emailKey", {"email"}}, {"idNameKey", {"id", "name"}} };
+			database.createTable("clients", keys, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "jh@mail.com"}}},   { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "hello, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "j23@mail.com"}}},  { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "bye, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "mary@mail.com"}}}, { "idNameKey", {{"id", 2}, {"name", "Mary"}} } }, { {"message", "hello, Mary"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "alex@mail.com"}}}, { "idNameKey", {{"id", 3}, {"name", "Alex"}} } }, { {"message", "hello, Alex"} }, connection);
 
 			database.getRowInSortedTable("clients", "idNameKey", true, connection);
 			database.getPrevRow("clients", connection);
@@ -407,7 +479,12 @@ namespace DatabaseTests
 		{
 			DatabaseLib::Database database;
 			DatabaseLib::Connection connection = database.connect();
-			createTable(database, connection);
+			json keys = { {"emailKey", {"email"}}, {"idNameKey", {"id", "name"}} };
+			database.createTable("clients", keys, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "jh@mail.com"}}},   { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "hello, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "j23@mail.com"}}},  { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "bye, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "mary@mail.com"}}}, { "idNameKey", {{"id", 2}, {"name", "Mary"}} } }, { {"message", "hello, Mary"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "alex@mail.com"}}}, { "idNameKey", {{"id", 3}, {"name", "Alex"}} } }, { {"message", "hello, Alex"} }, connection);
 
 			database.getRowInSortedTable("clients", "emailKey", false, connection);
 
@@ -425,7 +502,12 @@ namespace DatabaseTests
 		{
 			DatabaseLib::Database database;
 			DatabaseLib::Connection connection = database.connect();
-			createTable(database, connection);
+			json keys = { {"emailKey", {"email"}}, {"idNameKey", {"id", "name"}} };
+			database.createTable("clients", keys, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "jh@mail.com"}}},   { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "hello, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "j23@mail.com"}}},  { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "bye, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "mary@mail.com"}}}, { "idNameKey", {{"id", 2}, {"name", "Mary"}} } }, { {"message", "hello, Mary"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "alex@mail.com"}}}, { "idNameKey", {{"id", 3}, {"name", "Alex"}} } }, { {"message", "hello, Alex"} }, connection);
 
 			json keyValue;
 			keyValue["idNameKey"] = { {"id", 1}, {"name", "John"} };
@@ -445,7 +527,12 @@ namespace DatabaseTests
 		{
 			DatabaseLib::Database database;
 			DatabaseLib::Connection connection = database.connect();
-			createTable(database, connection);
+			json keys = { {"emailKey", {"email"}}, {"idNameKey", {"id", "name"}} };
+			database.createTable("clients", keys, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "jh@mail.com"}}},   { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "hello, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "j23@mail.com"}}},  { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "bye, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "mary@mail.com"}}}, { "idNameKey", {{"id", 2}, {"name", "Mary"}} } }, { {"message", "hello, Mary"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "alex@mail.com"}}}, { "idNameKey", {{"id", 3}, {"name", "Alex"}} } }, { {"message", "hello, Alex"} }, connection);
 
 			database.addKey("clients", { {"nameEmailKey", {"name", "email"}} }, connection);
 
@@ -461,7 +548,12 @@ namespace DatabaseTests
 		{
 			DatabaseLib::Database database;
 			DatabaseLib::Connection connection = database.connect();
-			createTable(database, connection);
+			json keys = { {"emailKey", {"email"}}, {"idNameKey", {"id", "name"}} };
+			database.createTable("clients", keys, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "jh@mail.com"}}},   { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "hello, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "j23@mail.com"}}},  { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "bye, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "mary@mail.com"}}}, { "idNameKey", {{"id", 2}, {"name", "Mary"}} } }, { {"message", "hello, Mary"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "alex@mail.com"}}}, { "idNameKey", {{"id", 3}, {"name", "Alex"}} } }, { {"message", "hello, Alex"} }, connection);
 
 			database.removeKey("clients", "emailKey", connection);
 
@@ -488,7 +580,12 @@ namespace DatabaseTests
 		{
 			DatabaseLib::Database database;
 			DatabaseLib::Connection connection = database.connect();
-			createTable(database, connection);
+			json keys = { {"emailKey", {"email"}}, {"idNameKey", {"id", "name"}} };
+			database.createTable("clients", keys, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "jh@mail.com"}}},   { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "hello, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "j23@mail.com"}}},  { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "bye, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "mary@mail.com"}}}, { "idNameKey", {{"id", 2}, {"name", "Mary"}} } }, { {"message", "hello, Mary"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "alex@mail.com"}}}, { "idNameKey", {{"id", 3}, {"name", "Alex"}} } }, { {"message", "hello, Alex"} }, connection);
 
 			database.getRowInSortedTable("clients", "emailKey", false, connection);
 			database.appendRow("clients", { {"emailKey", {{"email", "bill@mail.com"}}},   { "idNameKey", {{"id", 1}, {"name", "Bill"}} } }, { {"message", "hello, Bill"} }, connection);
@@ -500,6 +597,34 @@ namespace DatabaseTests
 			database.removeTable("clients", connection);
 			database.disconnect(connection);
 		}
+
+		/*TEST_METHOD(MultithreadedRead)
+		{
+			DatabaseLib::Database database;
+			DatabaseLib::Connection connection = database.connect();
+			json keys = { {"emailKey", {"email"}}, {"idNameKey", {"id", "name"}} };
+			database.createTable("clients", keys, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "jh@mail.com"}}},   { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "hello, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "j23@mail.com"}}},  { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "bye, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "mary@mail.com"}}}, { "idNameKey", {{"id", 2}, {"name", "Mary"}} } }, { {"message", "hello, Mary"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "alex@mail.com"}}}, { "idNameKey", {{"id", 3}, {"name", "Alex"}} } }, { {"message", "hello, Alex"} }, connection);
+
+			auto readByEmail = [&database]() {
+				DatabaseLib::Connection connection = database.connect();
+				for (std::string email : {"jh@mail.com", "j23@mail.com", "mary@mail.com", "alex@mail.com"})
+				{
+					json keyValue = { "emailKey", email };
+					json row = database.getRowByKey("clients", keyValue, connection);
+					Assert::AreEqual(email, row["email"].get<std::string>());
+				}
+			};
+
+			std::thread thread1(readByEmail);
+			std::thread thread2(readByEmail);
+
+			thread1.join();
+			thread2.join();
+		}*/
 
 	};
 }

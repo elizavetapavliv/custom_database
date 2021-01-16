@@ -1,6 +1,7 @@
 #pragma once
 #include <map>
 #include <vector>
+#include <shared_mutex>
 #include "Connection.h"
 #include "JsonComparator.h"
 #include "Cursor.h"
@@ -11,6 +12,8 @@ namespace DatabaseLib
 	class DATABASE_API Database
 	{
 	private:
+		mutable std::shared_mutex mutex_;
+
 		std::string META_FILE = "tables_meta.json";
 		std::string TXT_EXT = ".txt";
 		std::string JSON_EXT = ".json";
