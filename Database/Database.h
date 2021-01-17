@@ -32,6 +32,8 @@ namespace DatabaseLib
 		void ensureTableExists(std::string tableName, json tablesMeta);
 		void ensureTableIsNotEmpty(Indexes::iterator row, Indexes::iterator end);
 		Cursor getCurrentCursor(std::string tableName, Connection connection);
+		unsigned shiftCursorBack(std::string tableName, Connection connection);
+		unsigned shiftCursorForward(std::string tableName, Connection connection);
 	public:
 		Connection connect();
 		void disconnect(Connection connection);

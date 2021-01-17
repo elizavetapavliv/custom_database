@@ -114,13 +114,15 @@ namespace DatabaseLib
 
 	json Database::getRowByKey(std::string tableName, json keyJson, Connection connection)
 	{
-		std::shared_lock lock(mutex_);
 		ensureIsConnected(connection);
-		
 		auto properties = keyJson.items().begin();
 		std::string keyName = properties.key();
+		{
+			std::unique_lock lock(mutex_);
+			loadIndex(tableName, keyName);
+		}
 
-		loadIndex(tableName, keyName);
+		std::shared_lock lock(mutex_);
 
 		auto row = tablesIndexes[tableName][keyName].find(properties.value());
 		auto end = tablesIndexes[tableName][keyName].end();
@@ -139,9 +141,12 @@ namespace DatabaseLib
 	json Database::getRowInSortedTable(std::string tableName, std::string keyName, 
 		bool isReversed, Connection connection)
 	{
-		std::shared_lock lock(mutex_);
 		ensureIsConnected(connection);
-		loadIndex(tableName, keyName);
+		{
+			std::unique_lock lock(mutex_);
+			loadIndex(tableName, keyName);
+		}
+		std::shared_lock lock(mutex_);
 
 		Indexes::iterator row;
 		int offsetIndex;
@@ -169,20 +174,7 @@ namespace DatabaseLib
 	json Database::getNextRow(std::string tableName, Connection connection)
 	{
 		std::shared_lock lock(mutex_);
-		Cursor cursor = getCurrentCursor(tableName, connection);
-
-		if ((unsigned)cursor.offsetIndex >= cursor.currentRow->second.size() - 1)
-		{
-			cursor.currentRow++;
-			ensureDataIsAvailable(cursor);
-			cursor.offsetIndex = 0u;
-		}
-		else
-		{
-			cursor.offsetIndex++;
-		}
-		connections[connection.getConnectionId()][tableName] = cursor;
-		unsigned offset = (cursor.currentRow->second)[cursor.offsetIndex];
+		unsigned offset = shiftCursorForward(tableName, connection);
 
 		return readDataByOffset(tableName, offset);
 	}
@@ -190,21 +182,7 @@ namespace DatabaseLib
 	json Database::getPrevRow(std::string tableName, Connection connection)
 	{
 		std::shared_lock lock(mutex_);
-		Cursor cursor = getCurrentCursor(tableName, connection);
-
-		if (cursor.offsetIndex == 0)
-		{
-			cursor.currentRow--;
-			ensureDataIsAvailable(cursor);
-			auto offsets = cursor.currentRow->second;
-			cursor.offsetIndex = offsets.size() - 1;
-		}
-		else
-		{
-			cursor.offsetIndex--;
-		}		
-		connections[connection.getConnectionId()][tableName] = cursor;
-		unsigned offset = cursor.currentRow->second[cursor.offsetIndex];
+		unsigned offset = shiftCursorBack(tableName, connection);
 
 		return readDataByOffset(tableName, offset);
 	}
@@ -251,8 +229,30 @@ namespace DatabaseLib
 	{
 		std::unique_lock lock(mutex_);
 		Cursor cursor = getCurrentCursor(tableName, connection);
-		unsigned offset = cursor.currentRow->second[cursor.offsetIndex];
-		json toRemove = readDataByOffset(tableName, offset);
+
+		unsigned offsetToRemove = cursor.currentRow->second[cursor.offsetIndex];
+		unsigned removedLength = 0;
+		std::ifstream tableFile(tableName + TXT_EXT);
+		tableFile.seekg(offsetToRemove, std::ios::beg);
+		std::string toRemoveStr;
+		std::getline(tableFile, toRemoveStr);
+		unsigned nextEntryOffset = tableFile.tellg();
+		tableFile.close();
+		removedLength = nextEntryOffset - offsetToRemove;
+		json toRemove = json::parse(toRemoveStr);
+
+		try
+		{
+			shiftCursorForward(tableName, connection);
+		}
+		catch (DatabaseLib::DatabaseException ex)
+		{
+			try
+			{
+				shiftCursorBack(tableName, connection);
+			}
+			catch (DatabaseLib::DatabaseException ex) {}
+		}
 
 		json tablesMeta = readJsonFromFile(META_FILE);
 		json associatedKeys = tablesMeta[tableName]["keys"];
@@ -265,7 +265,23 @@ namespace DatabaseLib
 				keyValue[keyColumn] = toRemove[keyColumn];
 			}
 			auto entry = tablesIndexes[tableName][keyName][keyValue];
-			entry.erase(std::remove(entry.begin(), entry.end(), offset), entry.end());
+			if (entry.size() == 1)
+			{
+				tablesIndexes[tableName][keyName].erase(keyValue);
+			}
+			else
+			{
+				entry.erase(std::remove(entry.begin(), entry.end(), offsetToRemove), entry.end());
+			}
+			for (auto& entry : tablesIndexes[tableName][keyName])
+			{
+				for (auto& offset : entry.second) {
+					if (offset > offsetToRemove)
+					{
+						offset -= removedLength;
+					}
+				}
+			}
 			dumpIndex(tableName, keyName);
 		}
 
@@ -274,7 +290,7 @@ namespace DatabaseLib
 		auto currOffset = tableFileIn.tellg();
 		while (std::getline(tableFileIn, value))
 		{
-			if ((unsigned)currOffset != offset)
+			if ((unsigned)currOffset != offsetToRemove)
 			{
 				rest.append(value);
 				rest.append("\n");
@@ -396,5 +412,42 @@ namespace DatabaseLib
 		loadIndex(tableName, cursor.keyName);
 
 		return cursor;
+	}
+
+	unsigned Database::shiftCursorBack(std::string tableName, Connection connection)
+	{
+		Cursor cursor = getCurrentCursor(tableName, connection);
+
+		if (cursor.offsetIndex == 0)
+		{
+			cursor.currentRow--;
+			ensureDataIsAvailable(cursor);
+			auto offsets = cursor.currentRow->second;
+			cursor.offsetIndex = offsets.size() - 1;
+		}
+		else
+		{
+			cursor.offsetIndex--;
+		}
+		connections[connection.getConnectionId()][tableName] = cursor;
+		return cursor.currentRow->second[cursor.offsetIndex];
+	}
+
+	unsigned Database::shiftCursorForward(std::string tableName, Connection connection)
+	{
+		Cursor cursor = getCurrentCursor(tableName, connection);
+
+		if ((unsigned)cursor.offsetIndex >= cursor.currentRow->second.size() - 1)
+		{
+			cursor.currentRow++;
+			ensureDataIsAvailable(cursor);
+			cursor.offsetIndex = 0u;
+		}
+		else
+		{
+			cursor.offsetIndex++;
+		}
+		connections[connection.getConnectionId()][tableName] = cursor;
+		return (cursor.currentRow->second)[cursor.offsetIndex];
 	}
 }

@@ -491,7 +491,30 @@ namespace DatabaseTests
 			database.removeRow("clients", connection);
 
 			json row = database.getNextRow("clients", connection);
-			std::string expectedMessage = "bye, John";
+			std::string expectedMessage = "hello, John";
+			Assert::AreEqual(expectedMessage, row["message"].get<std::string>());
+
+			database.removeTable("clients", connection);
+			database.disconnect(connection);
+		}
+
+		TEST_METHOD(RemoveFirstRowInTable)
+		{
+			DatabaseLib::Database database;
+			DatabaseLib::Connection connection = database.connect();
+			json keys = { {"emailKey", {"email"}}, {"idNameKey", {"id", "name"}} };
+			database.createTable("clients", keys, connection); 
+			database.appendRow("clients", { {"emailKey", {{"email", "alex@mail.com"}}}, { "idNameKey", {{"id", 3}, {"name", "Alex"}} } }, { {"message", "hello, Alex"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "jh@mail.com"}}},   { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "hello, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "j23@mail.com"}}},  { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "bye, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "mary@mail.com"}}}, { "idNameKey", {{"id", 2}, {"name", "Mary"}} } }, { {"message", "hello, Mary"} }, connection);
+			
+			database.getRowInSortedTable("clients", "emailKey", false, connection);
+
+			database.removeRow("clients", connection);
+
+			json row = database.getNextRow("clients", connection);
+			std::string expectedMessage = "hello, John";
 			Assert::AreEqual(expectedMessage, row["message"].get<std::string>());
 
 			database.removeTable("clients", connection);
@@ -598,7 +621,7 @@ namespace DatabaseTests
 			database.disconnect(connection);
 		}
 
-		/*TEST_METHOD(MultithreadedRead)
+		TEST_METHOD(MultithreadedRead)
 		{
 			DatabaseLib::Database database;
 			DatabaseLib::Connection connection = database.connect();
@@ -611,11 +634,14 @@ namespace DatabaseTests
 
 			auto readByEmail = [&database]() {
 				DatabaseLib::Connection connection = database.connect();
-				for (std::string email : {"jh@mail.com", "j23@mail.com", "mary@mail.com", "alex@mail.com"})
+				for (int i = 0; i < 1000; ++i)
 				{
-					json keyValue = { "emailKey", email };
-					json row = database.getRowByKey("clients", keyValue, connection);
-					Assert::AreEqual(email, row["email"].get<std::string>());
+					for (std::string email : {"jh@mail.com", "j23@mail.com", "mary@mail.com", "alex@mail.com"})
+					{
+						json keyValue = { {"emailKey", email} };
+						json row = database.getRowByKey("clients", keyValue, connection);
+						Assert::AreEqual(email, row["email"].get<std::string>());
+					}
 				}
 			};
 
@@ -624,7 +650,55 @@ namespace DatabaseTests
 
 			thread1.join();
 			thread2.join();
-		}*/
+
+			database.removeTable("clients", connection);
+			database.disconnect(connection);
+		}
+
+		TEST_METHOD(MultithreadedReadWriteDelete)
+		{
+			DatabaseLib::Database database;
+			DatabaseLib::Connection connection = database.connect();
+			json keys = { {"emailKey", {"email"}}, {"idNameKey", {"id", "name"}} };
+			database.createTable("clients", keys, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "jh@mail.com"}}},   { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "hello, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "j23@mail.com"}}},  { "idNameKey", {{"id", 1}, {"name", "John"}} } }, { {"message", "bye, John"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "mary@mail.com"}}}, { "idNameKey", {{"id", 2}, {"name", "Mary"}} } }, { {"message", "hello, Mary"} }, connection);
+			database.appendRow("clients", { {"emailKey", {{"email", "alex@mail.com"}}}, { "idNameKey", {{"id", 3}, {"name", "Alex"}} } }, { {"message", "hello, Alex"} }, connection);
+
+			auto readByEmail1 = [&database]() {
+				DatabaseLib::Connection connection = database.connect();
+				for (int i = 0; i < 1000; ++i)
+				{
+					database.appendRow("clients", { {"emailKey", {{"email", "bill@mail.com"}}},   { "idNameKey", {{"id", 1}, {"name", "Bill"}} } }, { {"message", "hello, Bill"} }, connection);
+					json keyValue = { {"emailKey", "bill@mail.com"} };
+					json row = database.getRowByKey("clients", keyValue, connection);
+					Assert::AreEqual(std::string("hello, Bill"), row["message"].get<std::string>());
+					database.removeRow("clients", connection);
+				}
+			};
+
+			auto readByEmail2 = [&database]() {
+				DatabaseLib::Connection connection = database.connect();
+				for (int i = 0; i < 1000; ++i)
+				{
+					database.appendRow("clients", { {"emailKey", {{"email", "josh@mail.com"}}},   { "idNameKey", {{"id", 4}, {"name", "Josh"}} } }, { {"message", "bye, Josh"} }, connection);
+					json keyValue = { {"emailKey", "josh@mail.com"} };
+					json row = database.getRowByKey("clients", keyValue, connection);
+					Assert::AreEqual(std::string("bye, Josh"), row["message"].get<std::string>());
+					database.removeRow("clients", connection);
+				}
+			};
+
+			std::thread thread1(readByEmail1);
+			std::thread thread2(readByEmail2);
+
+			thread1.join();
+			thread2.join();
+
+			database.removeTable("clients", connection);
+			database.disconnect(connection);
+		}
 
 	};
 }
